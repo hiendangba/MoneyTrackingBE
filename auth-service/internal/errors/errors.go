@@ -11,11 +11,16 @@ type BusinessError struct {
 	Code    int
 }
 
-
-cai
-
 func (e *BusinessError) Error() string {
 	return e.Message
+}
+
+func NewBusinessError(status int, message string, code int) *BusinessError {
+	return &BusinessError{
+		Status:  status,
+		Message: message,
+		Code:    code,
+	}
 }
 
 var (
