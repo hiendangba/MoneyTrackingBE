@@ -36,6 +36,8 @@ type PostgresConfig struct {
 	Username string
 	Password string
 	SSLMode  string
+	MaxConns int32
+	MinConns int32
 }
 
 type RedisConfig struct {
@@ -82,6 +84,8 @@ func Load() (Config, error) {
 			Username: getEnv("POSTGRES_USERNAME", "postgres"),
 			Password: getEnv("POSTGRES_PASSWORD", ""),
 			SSLMode:  getEnv("POSTGRES_SSL_MODE", "disable"),
+			MaxConns: int32(getEnvInt("POSTGRES_MAX_CONNS", 10)),
+			MinConns: int32(getEnvInt("POSTGRES_MIN_CONNS", 5)),
 		},
 		// Redis: RedisConfig{
 		// 	Addr:     getEnv("REDIS_ADDR", "localhost:6379"),

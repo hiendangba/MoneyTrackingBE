@@ -1,17 +1,20 @@
 package infrastructure
 
 import (
+	"auth-service/internal/config"
 	"context"
 	"fmt"
 	"net/url"
-
-	"auth-service/internal/config"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func NewPostgres(ctx context.Context, cfg config.Config) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.New(ctx, buildPostgresDSN(cfg.Postgres))
+	poolConfig, err := pgxpool.ParseConfig(buildPostgresDSN(cfg.Postgres))
+	if err != nil {
+		return nil, fmt.Errorf("parse postgres config: %w", err)
+	}
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return nil, fmt.Errorf("open postgres pool: %w", err)
 	}
@@ -23,13 +26,15 @@ func NewPostgres(ctx context.Context, cfg config.Config) (*pgxpool.Pool, error) 
 }
 
 func buildPostgresDSN(cfg config.PostgresConfig) string {
-	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
-		url.QueryEscape(cfg.Username),
-		url.QueryEscape(cfg.Password),
-		cfg.Host,
-		cfg.Port,
-		cfg.DBName,
-		url.QueryEscape(cfg.SSLMode),
-	)
+	u := &url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(cfg.Username, cfg.Password),
+		Host:   fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+		Path:   cfg.DBName,
+	}
+
+	q := u.Query()
+	q.Set("sslmode", cfg.SSLMode)
+	u.RawQuery = q.Encode()
+	return u.String()
 }
