@@ -54,13 +54,13 @@ func NewAuthService(
 func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) error {
 	req.Email = utils.NormalizeEmail(req.Email)
 	if err := utils.ValidateEmail(req.Email); err != nil {
-		return apperrors.ValidationError{Message: err.Error()}
+		return apperrors.Validation(err.Error())
 	}
 	if err := utils.ValidatePassword(req.Password); err != nil {
-		return apperrors.ValidationError{Message: err.Error()}
+		return apperrors.Validation(err.Error())
 	}
 	if strings.TrimSpace(req.Fullname) == "" {
-		return apperrors.ValidationError{Message: "fullname is required"}
+		return apperrors.Validation("fullname is required")
 	}
 
 	if _, err := s.userRepo.FindByEmail(ctx, req.Email); err == nil {
@@ -105,13 +105,13 @@ func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) err
 func (s *AuthService) VerifyOTP(ctx context.Context, req dto.VerifyOTPRequest, w http.ResponseWriter) error {
 	req.Email = utils.NormalizeEmail(req.Email)
 	if err := utils.ValidateEmail(req.Email); err != nil {
-		return apperrors.ValidationError{Message: err.Error()}
+		return apperrors.Validation(err.Error())
 	}
 	if err := utils.ValidateOTP(req.OTP); err != nil {
-		return apperrors.ValidationError{Message: err.Error()}
+		return apperrors.Validation(err.Error())
 	}
 	if req.Purpose != domain.OTPPurposeRegister {
-		return apperrors.ValidationError{Message: "unsupported otp purpose"}
+		return apperrors.Validation("unsupported otp purpose")
 	}
 
 	payload, err := s.loadOTPPayload(ctx, s.registerOTPKey(req.Email))
@@ -236,7 +236,7 @@ func (s *AuthService) Logout(ctx context.Context, r *http.Request, w http.Respon
 func (s *AuthService) ForgotPassword(ctx context.Context, req dto.ForgotPasswordRequest) error {
 	req.Email = utils.NormalizeEmail(req.Email)
 	if err := utils.ValidateEmail(req.Email); err != nil {
-		return apperrors.ValidationError{Message: err.Error()}
+		return apperrors.Validation(err.Error())
 	}
 
 	user, err := s.userRepo.FindByEmail(ctx, req.Email)
@@ -279,13 +279,13 @@ func (s *AuthService) ForgotPassword(ctx context.Context, req dto.ForgotPassword
 func (s *AuthService) ResetPassword(ctx context.Context, req dto.ResetPasswordRequest, r *http.Request, w http.ResponseWriter) error {
 	req.Email = utils.NormalizeEmail(req.Email)
 	if err := utils.ValidateEmail(req.Email); err != nil {
-		return apperrors.ValidationError{Message: err.Error()}
+		return apperrors.Validation(err.Error())
 	}
 	if err := utils.ValidateOTP(req.OTP); err != nil {
-		return apperrors.ValidationError{Message: err.Error()}
+		return apperrors.Validation(err.Error())
 	}
 	if err := utils.ValidatePassword(req.NewPassword); err != nil {
-		return apperrors.ValidationError{Message: err.Error()}
+		return apperrors.Validation(err.Error())
 	}
 
 	payload, err := s.loadOTPPayload(ctx, s.resetOTPKey(req.Email))
@@ -320,7 +320,7 @@ func (s *AuthService) ResetPassword(ctx context.Context, req dto.ResetPasswordRe
 
 func (s *AuthService) ChangePassword(ctx context.Context, userID string, req dto.ChangePasswordRequest, r *http.Request, w http.ResponseWriter) error {
 	if err := utils.ValidatePassword(req.NewPassword); err != nil {
-		return apperrors.ValidationError{Message: err.Error()}
+		return apperrors.Validation(err.Error())
 	}
 
 	user, err := s.userRepo.FindByID(ctx, userID)
@@ -501,3 +501,4 @@ func (s *AuthService) removeBlacklist(ctx context.Context, tokenType, jti string
 func ctxWithoutCancel() context.Context {
 	return context.Background()
 }
+
