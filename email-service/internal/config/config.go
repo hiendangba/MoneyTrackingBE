@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/mail"
 	"os"
 	"strconv"
 	"strings"
@@ -32,6 +33,7 @@ type SMTPConfig struct {
 	Username string
 	Password string
 	From     string
+	FromAddr string
 }
 
 func Load() (Config, error) {
@@ -71,11 +73,25 @@ func Load() (Config, error) {
 	if cfg.SMTP.Port <= 0 || cfg.SMTP.Port > 65535 {
 		return Config{}, errors.New("SMTP_PORT must be between 1 and 65535")
 	}
+	fromHeader, fromAddr, err := parseSender(cfg.SMTP.From)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.SMTP.From = fromHeader
+	cfg.SMTP.FromAddr = fromAddr
 	if cfg.RabbitMQ.PrefetchCount <= 0 {
 		return Config{}, errors.New("RABBITMQ_PREFETCH_COUNT must be greater than 0")
 	}
 
 	return cfg, nil
+}
+
+func parseSender(raw string) (string, string, error) {
+	sender, err := mail.ParseAddress(strings.TrimSpace(raw))
+	if err != nil {
+		return "", "", fmt.Errorf("EMAIL_FROM must be a valid mailbox: %w", err)
+	}
+	return sender.String(), sender.Address, nil
 }
 
 func getEnv(key, fallback string) string {

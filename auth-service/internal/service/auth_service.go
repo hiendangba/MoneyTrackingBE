@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -29,7 +28,6 @@ type AuthService struct {
 	jwtService  *JWTService
 	redisClient *redis.Client
 	publisher   infrastructure.OTPPublisher
-	logger      *slog.Logger
 }
 
 func NewAuthService(
@@ -38,7 +36,6 @@ func NewAuthService(
 	jwtService *JWTService,
 	redisClient *redis.Client,
 	publisher infrastructure.OTPPublisher,
-	logger *slog.Logger,
 ) *AuthService {
 	return &AuthService{
 		cfg:         cfg,
@@ -47,7 +44,6 @@ func NewAuthService(
 		jwtService:  jwtService,
 		redisClient: redisClient,
 		publisher:   publisher,
-		logger:      logger,
 	}
 }
 
@@ -158,27 +154,51 @@ func (s *AuthService) VerifyOTP(ctx context.Context, req dto.VerifyOTPRequest, w
 		return fmt.Errorf("delete otp payload: %w", err)
 	}
 
-	if err := s.issueSessionCookies(w, user.ID); err != nil {
+	if err := s.issueSessionCookies(w, user); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest, w http.ResponseWriter) error {
+	user, err := s.authenticate(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	return s.issueSessionCookies(w, user)
+}
+
+func (s *AuthService) MobileLogin(ctx context.Context, req dto.LoginRequest) (*dto.TokenResponse, error) {
+	user, err := s.authenticate(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	sessionID, err := uuid.NewV7()
+	if err != nil {
+		return nil, fmt.Errorf("generate session id: %w", err)
+	}
+	return s.issueTokenPair(user, sessionID.String())
+}
+
+func (s *AuthService) authenticate(ctx context.Context, req dto.LoginRequest) (*domain.User, error) {
 	req.Email = utils.NormalizeEmail(req.Email)
 	user, err := s.userRepo.FindByEmail(ctx, req.Email)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrUserNotFound) {
-			return apperrors.ErrInvalidCredentials
+			return nil, apperrors.ErrInvalidCredentials
 		}
-		return fmt.Errorf("find user by email: %w", err)
+		return nil, fmt.Errorf("find user by email: %w", err)
 	}
 
 	if err := utils.ComparePassword(user.PasswordHash, req.Password); err != nil {
-		return apperrors.ErrInvalidCredentials
+		return nil, apperrors.ErrInvalidCredentials
 	}
-
-	return s.issueSessionCookies(w, user.ID)
+	if err := validateActiveUser(user); err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 func (s *AuthService) RefreshToken(ctx context.Context, r *http.Request, w http.ResponseWriter) error {
@@ -188,49 +208,97 @@ func (s *AuthService) RefreshToken(ctx context.Context, r *http.Request, w http.
 		return apperrors.ErrUnauthorized
 	}
 
-	refreshClaims, err := s.jwtService.ParseAndValidate(refreshToken)
+	tokens, err := s.rotateSession(ctx, refreshToken)
 	if err != nil {
 		s.clearSessionCookies(w)
-		return apperrors.ErrInvalidToken
-	}
-	if err := ValidateTokenType(refreshClaims, domain.TokenTypeRefresh); err != nil {
-		s.clearSessionCookies(w)
 		return err
 	}
-	if err := s.ensureNotBlacklisted(ctx, domain.TokenTypeRefresh, refreshClaims.ID); err != nil {
-		s.clearSessionCookies(w)
-		return err
-	}
+	s.setSessionCookies(w, tokens)
+	return nil
+}
 
-	if err := s.blacklistTokenClaims(ctx, refreshClaims); err != nil {
-		return err
+func (s *AuthService) MobileRefresh(ctx context.Context, refreshToken string) (*dto.TokenResponse, error) {
+	if strings.TrimSpace(refreshToken) == "" {
+		return nil, apperrors.ErrUnauthorized
 	}
-
-	if accessToken := s.extractAccessToken(r); accessToken != "" {
-		if accessClaims, parseErr := s.jwtService.ParseAndValidate(accessToken); parseErr == nil {
-			_ = s.blacklistTokenClaims(ctx, accessClaims)
-		}
-	}
-
-	return s.issueSessionCookies(w, refreshClaims.Subject)
+	return s.rotateSession(ctx, refreshToken)
 }
 
 func (s *AuthService) Logout(ctx context.Context, r *http.Request, w http.ResponseWriter) error {
-	if accessToken := s.extractAccessToken(r); accessToken != "" {
-		if claims, err := s.jwtService.ParseAndValidate(accessToken); err == nil {
-			_ = s.blacklistTokenClaims(ctx, claims)
-		}
-	}
-
 	refreshToken := utils.GetCookieValue(r, s.jwtCfg.RefreshCookieName)
-	if refreshToken != "" {
-		if claims, err := s.jwtService.ParseAndValidate(refreshToken); err == nil {
-			_ = s.blacklistTokenClaims(ctx, claims)
-		}
+	accessToken := s.extractAccessToken(r)
+	err := s.revokeSessionFromTokens(ctx, accessToken, refreshToken)
+	s.clearSessionCookies(w)
+	return err
+}
+
+func (s *AuthService) MobileLogout(ctx context.Context, accessToken, refreshToken string) error {
+	return s.revokeSessionFromTokens(ctx, accessToken, refreshToken)
+}
+
+func (s *AuthService) rotateSession(ctx context.Context, refreshToken string) (*dto.TokenResponse, error) {
+	claims, err := s.jwtService.ParseRefreshToken(refreshToken)
+	if err != nil {
+		return nil, apperrors.ErrInvalidToken
+	}
+	if err := s.ensureSessionActive(ctx, claims.SessionID); err != nil {
+		return nil, err
 	}
 
-	s.clearSessionCookies(w)
-	return nil
+	user, err := s.userRepo.FindByID(ctx, claims.Subject)
+	if err != nil {
+		return nil, fmt.Errorf("find refresh user: %w", err)
+	}
+	if err := validateActiveUser(user); err != nil {
+		if revokeErr := s.revokeSession(ctx, claims.SessionID); revokeErr != nil {
+			return nil, errors.Join(err, revokeErr)
+		}
+		return nil, err
+	}
+	if user.SessionVersion != claims.SessionVersion {
+		if revokeErr := s.revokeSession(ctx, claims.SessionID); revokeErr != nil {
+			return nil, errors.Join(apperrors.ErrSessionRevoked, revokeErr)
+		}
+		return nil, apperrors.ErrSessionRevoked
+	}
+
+	refreshTTL := s.jwtService.RemainingTTL(claims)
+	if refreshTTL <= 0 {
+		return nil, apperrors.ErrInvalidToken
+	}
+	consumed, err := s.redisClient.SetNX(
+		ctx,
+		s.usedRefreshKey(claims.ID),
+		"used",
+		refreshTTL,
+	).Result()
+	if err != nil {
+		return nil, fmt.Errorf("consume refresh token: %w", err)
+	}
+	if !consumed {
+		if revokeErr := s.revokeSession(ctx, claims.SessionID); revokeErr != nil {
+			return nil, fmt.Errorf("revoke replayed session: %w", revokeErr)
+		}
+		return nil, apperrors.ErrSessionRevoked
+	}
+
+	return s.issueTokenPair(user, claims.SessionID)
+}
+
+func (s *AuthService) revokeSessionFromTokens(ctx context.Context, accessToken, refreshToken string) error {
+	var claims *domain.TokenClaims
+	var err error
+	if strings.TrimSpace(accessToken) != "" {
+		claims, err = s.jwtService.ParseAccessToken(accessToken)
+	} else if strings.TrimSpace(refreshToken) != "" {
+		claims, err = s.jwtService.ParseRefreshToken(refreshToken)
+	} else {
+		return nil
+	}
+	if err != nil {
+		return apperrors.ErrInvalidToken
+	}
+	return s.revokeSession(ctx, claims.SessionID)
 }
 
 func (s *AuthService) ForgotPassword(ctx context.Context, req dto.ForgotPasswordRequest) error {
@@ -245,6 +313,9 @@ func (s *AuthService) ForgotPassword(ctx context.Context, req dto.ForgotPassword
 			return nil
 		}
 		return fmt.Errorf("find user by email: %w", err)
+	}
+	if err := validateActiveUser(user); err != nil {
+		return nil
 	}
 
 	otp, err := utils.GenerateOTP(6)
@@ -276,7 +347,7 @@ func (s *AuthService) ForgotPassword(ctx context.Context, req dto.ForgotPassword
 	return nil
 }
 
-func (s *AuthService) ResetPassword(ctx context.Context, req dto.ResetPasswordRequest, r *http.Request, w http.ResponseWriter) error {
+func (s *AuthService) ResetPassword(ctx context.Context, req dto.ResetPasswordRequest, w http.ResponseWriter) error {
 	req.Email = utils.NormalizeEmail(req.Email)
 	if err := utils.ValidateEmail(req.Email); err != nil {
 		return apperrors.Validation(err.Error())
@@ -307,18 +378,18 @@ func (s *AuthService) ResetPassword(ctx context.Context, req dto.ResetPasswordRe
 	if err != nil {
 		return fmt.Errorf("hash new password: %w", err)
 	}
-	if err := s.userRepo.UpdatePassword(ctx, user.ID, hash); err != nil {
+	if _, err := s.userRepo.UpdatePasswordAndIncrementSessionVersion(ctx, user.ID, hash); err != nil {
 		return fmt.Errorf("update password: %w", err)
 	}
 	if err := s.redisClient.Del(ctx, s.resetOTPKey(req.Email)).Err(); err != nil {
 		return fmt.Errorf("delete reset otp: %w", err)
 	}
 
-	_ = s.Logout(ctx, r, w)
+	s.clearSessionCookies(w)
 	return nil
 }
 
-func (s *AuthService) ChangePassword(ctx context.Context, userID string, req dto.ChangePasswordRequest, r *http.Request, w http.ResponseWriter) error {
+func (s *AuthService) ChangePassword(ctx context.Context, userID string, req dto.ChangePasswordRequest, w http.ResponseWriter) error {
 	if err := utils.ValidatePassword(req.NewPassword); err != nil {
 		return apperrors.Validation(err.Error())
 	}
@@ -335,11 +406,11 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID string, req dto
 	if err != nil {
 		return fmt.Errorf("hash new password: %w", err)
 	}
-	if err := s.userRepo.UpdatePassword(ctx, userID, hash); err != nil {
+	if _, err := s.userRepo.UpdatePasswordAndIncrementSessionVersion(ctx, userID, hash); err != nil {
 		return fmt.Errorf("update password: %w", err)
 	}
 
-	_ = s.Logout(ctx, r, w)
+	s.clearSessionCookies(w)
 	return nil
 }
 
@@ -348,11 +419,15 @@ func (s *AuthService) Me(ctx context.Context, userID string) (*dto.MeResponse, e
 	if err != nil {
 		return nil, fmt.Errorf("find me: %w", err)
 	}
+	if err := validateActiveUser(user); err != nil {
+		return nil, err
+	}
 	return &dto.MeResponse{
 		ID:       user.ID,
 		Fullname: user.Fullname,
 		Email:    user.Email,
 		RoleID:   user.RoleID,
+		RoleCode: user.RoleCode,
 	}, nil
 }
 
@@ -361,55 +436,112 @@ func (s *AuthService) AccessCookieName() string {
 }
 
 func (s *AuthService) extractAccessToken(r *http.Request) string {
+	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
+	const bearer = "Bearer "
+	if strings.HasPrefix(authHeader, bearer) {
+		return strings.TrimSpace(strings.TrimPrefix(authHeader, bearer))
+	}
 	if token := utils.GetCookieValue(r, s.jwtCfg.AccessCookieName); token != "" {
 		return token
 	}
-
-	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
-	if authHeader == "" {
-		return ""
-	}
-	const bearer = "Bearer "
-	if !strings.HasPrefix(authHeader, bearer) {
-		return ""
-	}
-	return strings.TrimSpace(strings.TrimPrefix(authHeader, bearer))
+	return ""
 }
 
-func (s *AuthService) issueSessionCookies(w http.ResponseWriter, userID string) error {
-	accessToken, accessClaims, err := s.jwtService.GenerateAccessToken(userID)
+func (s *AuthService) issueSessionCookies(w http.ResponseWriter, user *domain.User) error {
+	sessionID, err := uuid.NewV7()
 	if err != nil {
-		return fmt.Errorf("generate access token: %w", err)
+		return fmt.Errorf("generate session id: %w", err)
 	}
-	refreshToken, refreshClaims, err := s.jwtService.GenerateRefreshToken(userID)
+	tokens, err := s.issueTokenPair(user, sessionID.String())
 	if err != nil {
-		return fmt.Errorf("generate refresh token: %w", err)
-	}
-
-	utils.SetTokenCookie(w, s.jwtCfg.AccessCookieName, accessToken, s.jwtCfg.AccessTTL, s.cookieConfig())
-	utils.SetTokenCookie(w, s.jwtCfg.RefreshCookieName, refreshToken, s.jwtCfg.RefreshTTL, s.cookieConfig())
-
-	if err := s.removeBlacklist(ctxWithoutCancel(), domain.TokenTypeAccess, accessClaims.ID); err != nil {
 		return err
 	}
-	if err := s.removeBlacklist(ctxWithoutCancel(), domain.TokenTypeRefresh, refreshClaims.ID); err != nil {
-		return err
+	s.setSessionCookies(w, tokens)
+	return nil
+}
+
+func (s *AuthService) issueTokenPair(user *domain.User, sessionID string) (*dto.TokenResponse, error) {
+	accessToken, _, err := s.jwtService.GenerateAccessToken(
+		user.ID,
+		user.RoleID,
+		user.RoleCode,
+		sessionID,
+		user.SessionVersion,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("generate access token: %w", err)
+	}
+	refreshToken, _, err := s.jwtService.GenerateRefreshToken(user.ID, sessionID, user.SessionVersion)
+	if err != nil {
+		return nil, fmt.Errorf("generate refresh token: %w", err)
 	}
 
+	return &dto.TokenResponse{
+		AccessToken:      accessToken,
+		RefreshToken:     refreshToken,
+		TokenType:        "Bearer",
+		ExpiresIn:        int64(s.jwtCfg.AccessTTL.Seconds()),
+		RefreshExpiresIn: int64(s.jwtCfg.RefreshTTL.Seconds()),
+	}, nil
+}
+
+func (s *AuthService) setSessionCookies(w http.ResponseWriter, tokens *dto.TokenResponse) {
+	utils.SetTokenCookie(
+		w,
+		s.jwtCfg.AccessCookieName,
+		tokens.AccessToken,
+		s.jwtCfg.AccessTTL,
+		s.cookieConfig("/"),
+	)
+	utils.SetTokenCookie(
+		w,
+		s.jwtCfg.RefreshCookieName,
+		tokens.RefreshToken,
+		s.jwtCfg.RefreshTTL,
+		s.cookieConfig("/api/auth"),
+	)
+}
+
+func (s *AuthService) ensureSessionActive(ctx context.Context, sessionID string) error {
+	revoked, err := s.redisClient.Exists(ctx, s.revokedSessionKey(sessionID)).Result()
+	if err != nil {
+		return fmt.Errorf("check session revocation: %w", err)
+	}
+	if revoked > 0 {
+		return apperrors.ErrSessionRevoked
+	}
+	return nil
+}
+
+func (s *AuthService) revokeSession(ctx context.Context, sessionID string) error {
+	if strings.TrimSpace(sessionID) == "" {
+		return apperrors.ErrInvalidToken
+	}
+	if err := s.redisClient.Set(ctx, s.revokedSessionKey(sessionID), "revoked", s.jwtCfg.RefreshTTL).Err(); err != nil {
+		return fmt.Errorf("revoke session: %w", err)
+	}
 	return nil
 }
 
 func (s *AuthService) clearSessionCookies(w http.ResponseWriter) {
-	utils.ClearTokenCookie(w, s.jwtCfg.AccessCookieName, s.cookieConfig())
-	utils.ClearTokenCookie(w, s.jwtCfg.RefreshCookieName, s.cookieConfig())
+	utils.ClearTokenCookie(w, s.jwtCfg.AccessCookieName, s.cookieConfig("/"))
+	utils.ClearTokenCookie(w, s.jwtCfg.RefreshCookieName, s.cookieConfig("/api/auth"))
 }
 
-func (s *AuthService) cookieConfig() utils.CookieConfig {
+func (s *AuthService) cookieConfig(path string) utils.CookieConfig {
 	return utils.CookieConfig{
 		Secure:   s.cfg.CookieSecure,
 		SameSite: s.cfg.CookieSameSite,
 		Domain:   s.cfg.CookieDomain,
+		Path:     path,
 	}
+}
+
+func validateActiveUser(user *domain.User) error {
+	if user == nil || !user.IsActive || !user.RoleActive {
+		return apperrors.ErrAccountInactive
+	}
+	return nil
 }
 
 func (s *AuthService) registerOTPKey(email string) string {
@@ -420,8 +552,12 @@ func (s *AuthService) resetOTPKey(email string) string {
 	return "auth:otp:reset:" + email
 }
 
-func (s *AuthService) blacklistKey(tokenType, jti string) string {
-	return "auth:blacklist:" + tokenType + ":" + jti
+func (s *AuthService) usedRefreshKey(jti string) string {
+	return "auth:refresh:used:" + jti
+}
+
+func (s *AuthService) revokedSessionKey(sessionID string) string {
+	return "auth:session:revoked:" + sessionID
 }
 
 func (s *AuthService) storeOTPPayload(ctx context.Context, key string, payload domain.OTPPayload) error {
@@ -464,41 +600,3 @@ func (s *AuthService) verifyOTPPayload(ctx context.Context, key string, payload 
 	}
 	return nil
 }
-
-func (s *AuthService) ensureNotBlacklisted(ctx context.Context, tokenType, jti string) error {
-	result, err := s.redisClient.Exists(ctx, s.blacklistKey(tokenType, jti)).Result()
-	if err != nil {
-		return fmt.Errorf("check blacklist: %w", err)
-	}
-	if result > 0 {
-		return apperrors.ErrTokenBlacklisted
-	}
-	return nil
-}
-
-func (s *AuthService) blacklistTokenClaims(ctx context.Context, claims *domain.TokenClaims) error {
-	jti, err := TokenJTI(claims)
-	if err != nil {
-		return fmt.Errorf("extract token id: %w", err)
-	}
-	ttl := s.jwtService.RemainingTTL(claims)
-	if ttl <= 0 {
-		return nil
-	}
-	if err := s.redisClient.Set(ctx, s.blacklistKey(claims.TokenType, jti), "revoked", ttl).Err(); err != nil {
-		return fmt.Errorf("blacklist token: %w", err)
-	}
-	return nil
-}
-
-func (s *AuthService) removeBlacklist(ctx context.Context, tokenType, jti string) error {
-	if err := s.redisClient.Del(ctx, s.blacklistKey(tokenType, jti)).Err(); err != nil {
-		return fmt.Errorf("remove blacklist key: %w", err)
-	}
-	return nil
-}
-
-func ctxWithoutCancel() context.Context {
-	return context.Background()
-}
-

@@ -1,45 +1,75 @@
 name: money-tracking
 
 services:
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    environment:
+      ENVOY_UID: "0"
+      ENVOY_LOG_LEVEL: ${ENVOY_LOG_LEVEL:-info}
+      CORS_ALLOWED_ORIGIN_REGEX: ${CORS_ALLOWED_ORIGIN_REGEX:?CORS_ALLOWED_ORIGIN_REGEX is required}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./api-gateway/certs:/etc/envoy/certs:ro
+    depends_on:
+      auth-service:
+        condition: service_started
+    networks:
+      - edge
+    restart: unless-stopped
+
   auth-service:
     build:
       context: ./auth-service
       dockerfile: Dockerfile
-    container_name: money-tracking-auth-service
     environment:
       SERVER_HOST: 0.0.0.0
       SERVER_PORT: 8080
-      LOG_LEVEL: info
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      POSTGRES_DB: money_tracking_auth
-      POSTGRES_USERNAME: postgres
-      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: ${POSTGRES_DB:-money_tracking_auth}
+      POSTGRES_USERNAME: ${POSTGRES_USERNAME:?POSTGRES_USERNAME is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_SSL_MODE: disable
-      POSTGRES_MAX_CONNS: 10
-      POSTGRES_MIN_CONNS: 5
+      POSTGRES_MAX_CONNS: ${POSTGRES_MAX_CONNS:-10}
+      POSTGRES_MIN_CONNS: ${POSTGRES_MIN_CONNS:-2}
       REDIS_ADDR: redis:6379
-      REDIS_PASSWORD: ""
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
       REDIS_DB: 0
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      RABBITMQ_URL: amqp://${RABBITMQ_USERNAME:?RABBITMQ_USERNAME is required}:${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}@rabbitmq:5672/
       RABBITMQ_EXCHANGE: auth.events
       RABBITMQ_EMAIL_QUEUE: auth.email.otp
       RABBITMQ_REGISTER_KEY: auth.otp.register
       RABBITMQ_RESET_KEY: auth.otp.reset
-      JWT_SECRET: replace-this-with-at-least-32-characters-secret
+      JWT_PRIVATE_KEY_PATH: /run/secrets/jwt-private.pem
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt-public.pem
+      JWT_PUBLIC_KEYS: ${JWT_PUBLIC_KEYS:-money-tracking-auth-dev-key=/run/secrets/jwt-public.pem}
+      JWT_KEY_ID: ${JWT_KEY_ID:-money-tracking-auth-dev-key}
+      JWT_ACCESS_AUDIENCE: money-tracking-api
+      JWT_REFRESH_AUDIENCE: money-tracking-refresh
       JWT_ISSUER: auth-service
-      JWT_ACCESS_TTL: 15m
-      JWT_REFRESH_TTL: 168h
+      JWT_ACCESS_TTL: 5m
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-168h}
       AUTH_ACCESS_COOKIE_NAME: access_token
       AUTH_REFRESH_COOKIE_NAME: refresh_token
+      AUTH_CSRF_COOKIE_NAME: csrf_token
       AUTH_DEFAULT_ROLE_CODE: member
+      AUTH_ADMIN_ROLE_CODE: admin
       AUTH_OTP_TTL: 5m
       AUTH_OTP_MAX_ATTEMPTS: 5
-      AUTH_COOKIE_SECURE: false
+      AUTH_COOKIE_SECURE: "true"
       AUTH_COOKIE_SAME_SITE: None
       AUTH_COOKIE_DOMAIN: ""
-    ports:
-      - "8080:8080"
+      CORS_ALLOWED_ORIGIN_REGEX: ${CORS_ALLOWED_ORIGIN_REGEX:?CORS_ALLOWED_ORIGIN_REGEX is required}
+    secrets:
+      - source: jwt_private_key
+        target: jwt-private.pem
+      - source: jwt_public_key
+        target: jwt-public.pem
     depends_on:
       auth-migrate:
         condition: service_completed_successfully
@@ -47,90 +77,99 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks:
+      - edge
+      - data
+      - message
     restart: unless-stopped
 
   email-service:
     build:
       context: ./email-service
       dockerfile: Dockerfile
-    container_name: money-tracking-email-service
-    env_file:
-      - ./email-service/.env
     environment:
-      LOG_LEVEL: info
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      RABBITMQ_URL: amqp://${RABBITMQ_USERNAME:?RABBITMQ_USERNAME is required}:${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}@rabbitmq:5672/
       RABBITMQ_EXCHANGE: auth.events
       RABBITMQ_EMAIL_QUEUE: auth.email.otp
       RABBITMQ_REGISTER_KEY: auth.otp.register
       RABBITMQ_RESET_KEY: auth.otp.reset
       RABBITMQ_PREFETCH_COUNT: 5
       RABBITMQ_RECONNECT_DELAY: 5s
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-Money Tracking <no-reply@local.test>}
     depends_on:
       rabbitmq:
         condition: service_healthy
       mailpit:
         condition: service_started
+    networks:
+      - message
     restart: unless-stopped
 
   auth-migrate:
-    image: migrate/migrate
-    container_name: money-tracking-auth-migrate
+    image: migrate/migrate:v4.18.3
     command:
-      [
-        "-path",
-        "/migrations",
-        "-database",
-        "postgres://postgres:123456@postgres:5432/money_tracking_auth?sslmode=disable",
-        "up",
-      ]
+      - -path
+      - /migrations
+      - -database
+      - ${AUTH_DATABASE_URL:?AUTH_DATABASE_URL is required}
+      - up
     volumes:
       - ./auth-service/migrations:/migrations:ro
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - data
     restart: "no"
 
   postgres:
-    image: postgres:alpine
-    container_name: money-tracking-postgres
+    image: postgres:17.6-alpine
     environment:
-      POSTGRES_DB: money_tracking_auth
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 123456
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${POSTGRES_DB:-money_tracking_auth}
+      POSTGRES_USER: ${POSTGRES_USERNAME:?POSTGRES_USERNAME is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d money_tracking_auth"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - data
     restart: unless-stopped
 
   redis:
-    image: redis:alpine
-    container_name: money-tracking-redis
-    command: ["redis-server", "--appendonly", "yes"]
-    ports:
-      - "6379:6379"
+    image: redis:8.2.1-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command:
+      - sh
+      - -ec
+      - exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep PONG"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 5s
+    networks:
+      - data
     restart: unless-stopped
 
   rabbitmq:
-    image: rabbitmq:management-alpine
-    container_name: money-tracking-rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
+    image: rabbitmq:4.1.4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:?RABBITMQ_USERNAME is required}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
@@ -139,17 +178,28 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+    networks:
+      - message
     restart: unless-stopped
 
   mailpit:
-    image: axllent/mailpit:latest
-    container_name: money-tracking-mailpit
-    ports:
-      - "1025:1025"
-      - "8025:8025"
+    image: axllent/mailpit:v1.27.8
+    networks:
+      - message
     restart: unless-stopped
+
+networks:
+  edge:
+  data:
+  message:
 
 volumes:
   postgres-data:
   redis-data:
   rabbitmq-data:
+
+secrets:
+  jwt_private_key:
+    file: ./auth-service/keys/jwt-private.pem
+  jwt_public_key:
+    file: ./auth-service/keys/jwt-public.pem

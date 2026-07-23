@@ -14,6 +14,8 @@ func NewPostgres(ctx context.Context, cfg config.Config) (*pgxpool.Pool, error) 
 	if err != nil {
 		return nil, fmt.Errorf("parse postgres config: %w", err)
 	}
+	poolConfig.MaxConns = cfg.Postgres.MaxConns
+	poolConfig.MinConns = cfg.Postgres.MinConns
 	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return nil, fmt.Errorf("open postgres pool: %w", err)

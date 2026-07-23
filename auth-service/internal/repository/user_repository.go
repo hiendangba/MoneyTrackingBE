@@ -11,5 +11,5 @@ type UserRepository interface {
 	FindByID(ctx context.Context, id string) (*domain.User, error)
 	FindRoleIDByCode(ctx context.Context, code string) (string, error)
 	Create(ctx context.Context, user domain.User) (*domain.User, error)
-	UpdatePassword(ctx context.Context, userID string, passwordHash string) error
+	UpdatePasswordAndIncrementSessionVersion(ctx context.Context, userID string, passwordHash string) (int64, error)
 }

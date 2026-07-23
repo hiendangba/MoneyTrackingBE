@@ -13,14 +13,15 @@ FROM alpine:3.22
 
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates \
-    && addgroup -S appgroup \
+RUN apk add --no-cache ca-certificates su-exec \
+    && addgroup -g 1000 -S appgroup \
     && adduser -S appuser -G appgroup
 
 COPY --from=builder /auth-service /app/auth-service
+COPY docker-entrypoint.sh /usr/local/bin/auth-service-entrypoint
 
-USER appuser
+RUN chmod 0555 /usr/local/bin/auth-service-entrypoint
 
 EXPOSE 8080
 
-ENTRYPOINT ["/app/auth-service"]
+ENTRYPOINT ["/usr/local/bin/auth-service-entrypoint"]

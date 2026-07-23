@@ -60,7 +60,7 @@ func (m *Mailer) SendOTP(ctx context.Context, to, subject, body string) error {
 		}
 	}
 
-	if err := client.Mail(m.cfg.From); err != nil {
+	if err := client.Mail(m.cfg.FromAddr); err != nil {
 		return fmt.Errorf("set smtp sender: %w", err)
 	}
 	if err := client.Rcpt(to); err != nil {

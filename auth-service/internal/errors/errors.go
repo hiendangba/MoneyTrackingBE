@@ -32,8 +32,15 @@ var (
 	ErrOTPExpired          = NewBusinessError(http.StatusBadRequest, "otp expired", 4005)
 	ErrOTPAttemptsExceeded = NewBusinessError(http.StatusBadRequest, "otp attempts exceeded", 4006)
 	ErrInvalidToken        = NewBusinessError(http.StatusUnauthorized, "invalid token", 4007)
-	ErrTokenBlacklisted    = NewBusinessError(http.StatusUnauthorized, "token has been revoked", 4008)
 	ErrUnauthorized        = NewBusinessError(http.StatusUnauthorized, "unauthorized", 4009)
+	ErrMenuNotFound        = NewBusinessError(http.StatusNotFound, "menu not found", 4010)
+	ErrMenuHasChildren     = NewBusinessError(http.StatusBadRequest, "menu has children", 4011)
+	ErrMenuCycle           = NewBusinessError(http.StatusBadRequest, "menu parent relationship is invalid", 4012)
+	ErrConflict            = NewBusinessError(http.StatusConflict, "resource already exists", 4013)
+	ErrForbidden           = NewBusinessError(http.StatusForbidden, "forbidden", 4014)
+	ErrTooManyRequests     = NewBusinessError(http.StatusTooManyRequests, "too many requests", 4015)
+	ErrAccountInactive     = NewBusinessError(http.StatusForbidden, "account is inactive", 4016)
+	ErrSessionRevoked      = NewBusinessError(http.StatusUnauthorized, "session has been revoked", 4017)
 )
 
 func Validation(message string) *BusinessError {

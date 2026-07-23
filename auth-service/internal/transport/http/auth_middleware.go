@@ -14,6 +14,7 @@ import (
 type contextKey string
 
 const authUserIDKey contextKey = "auth_user_id"
+const authRoleCodeKey contextKey = "auth_role_code"
 
 type AuthMiddleware struct {
 	jwtService       *service.JWTService
@@ -37,19 +38,27 @@ func (m *AuthMiddleware) RequireAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		claims, err := m.jwtService.ParseAndValidate(token)
+		claims, err := m.jwtService.ParseAccessToken(token)
 		if err != nil {
 			writeError(w, apperrors.ErrUnauthorized, m.logger)
 			return
 		}
-		if err := service.ValidateTokenType(claims, "access"); err != nil {
+		ctx := context.WithValue(r.Context(), authUserIDKey, claims.Subject)
+		ctx = context.WithValue(ctx, authRoleCodeKey, claims.RoleCode)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func (m *AuthMiddleware) RequireRole(roleCode string, next http.Handler) http.Handler {
+	roleCode = strings.TrimSpace(roleCode)
+	return m.RequireAuth(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		currentRole, err := RoleCodeFromContext(r.Context())
+		if err != nil || currentRole != roleCode {
 			writeError(w, apperrors.ErrUnauthorized, m.logger)
 			return
 		}
-
-		ctx := context.WithValue(r.Context(), authUserIDKey, claims.Subject)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
+		next.ServeHTTP(w, r)
+	}))
 }
 
 func UserIDFromContext(ctx context.Context) (string, error) {
@@ -60,18 +69,20 @@ func UserIDFromContext(ctx context.Context) (string, error) {
 	return userID, nil
 }
 
+func RoleCodeFromContext(ctx context.Context) (string, error) {
+	roleCode, ok := ctx.Value(authRoleCodeKey).(string)
+	if !ok || roleCode == "" {
+		return "", errors.New("missing auth role code")
+	}
+	return roleCode, nil
+}
+
 func extractAccessToken(r *http.Request, cookieName string) string {
+	if token := extractBearerToken(r.Header.Get("Authorization")); token != "" {
+		return token
+	}
 	if cookie, err := r.Cookie(cookieName); err == nil {
 		return cookie.Value
 	}
-
-	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
-	if authHeader == "" {
-		return ""
-	}
-	const bearer = "Bearer "
-	if !strings.HasPrefix(authHeader, bearer) {
-		return ""
-	}
-	return strings.TrimSpace(strings.TrimPrefix(authHeader, bearer))
+	return ""
 }
