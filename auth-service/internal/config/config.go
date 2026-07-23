@@ -49,6 +49,7 @@ type RedisConfig struct {
 type RabbitMQConfig struct {
 	URL         string
 	Exchange    string
+	EmailQueue  string
 	RegisterKey string
 	ResetKey    string
 }
@@ -95,6 +96,7 @@ func Load() (Config, error) {
 		RabbitMQ: RabbitMQConfig{
 			URL:         getEnv("RABBITMQ_URL", ""),
 			Exchange:    getEnv("RABBITMQ_EXCHANGE", "auth.events"),
+			EmailQueue:  getEnv("RABBITMQ_EMAIL_QUEUE", "auth.email.otp"),
 			RegisterKey: getEnv("RABBITMQ_REGISTER_KEY", "auth.otp.register"),
 			ResetKey:    getEnv("RABBITMQ_RESET_KEY", "auth.otp.reset"),
 		},

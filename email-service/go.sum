@@ -1,0 +1,4 @@
+github.com/joho/godotenv v1.5.1 h1:rcnKMPesfGuBSesW3wZyuE3Cr2D5j9N8z4X7XG5k1Ok=
+github.com/joho/godotenv v1.5.1/go.mod h1:S8KsSx8G84Eyrjl40LuUtp0B64ImKXoIlZvzw2D1D1E=
+github.com/rabbitmq/amqp091-go v1.10.0 h1:STpn5XsHlHGcecLmMFCtg7mqq0RnD+zFr4uzukfVhBw=
+github.com/rabbitmq/amqp091-go v1.10.0/go.mod h1:Hy4jKW5kQART1u+JkDTF9YYOQUHXqMuhrgxOEeS7G4o=

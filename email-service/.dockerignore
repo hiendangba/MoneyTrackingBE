@@ -1,0 +1,16 @@
+.git
+.gitignore
+.env
+.env.*
+.vscode
+tmp
+dist
+bin
+coverage
+coverage.out
+*.log
+*.test
+*.exe
+*.dll
+*.so
+*.dylib

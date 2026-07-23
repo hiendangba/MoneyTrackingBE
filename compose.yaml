@@ -23,6 +23,7 @@ services:
       REDIS_DB: 0
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
       RABBITMQ_EXCHANGE: auth.events
+      RABBITMQ_EMAIL_QUEUE: auth.email.otp
       RABBITMQ_REGISTER_KEY: auth.otp.register
       RABBITMQ_RESET_KEY: auth.otp.reset
       JWT_SECRET: replace-this-with-at-least-32-characters-secret
@@ -46,6 +47,29 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    restart: unless-stopped
+
+  email-service:
+    build:
+      context: ./email-service
+      dockerfile: Dockerfile
+    container_name: money-tracking-email-service
+    env_file:
+      - ./email-service/.env
+    environment:
+      LOG_LEVEL: info
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      RABBITMQ_EXCHANGE: auth.events
+      RABBITMQ_EMAIL_QUEUE: auth.email.otp
+      RABBITMQ_REGISTER_KEY: auth.otp.register
+      RABBITMQ_RESET_KEY: auth.otp.reset
+      RABBITMQ_PREFETCH_COUNT: 5
+      RABBITMQ_RECONNECT_DELAY: 5s
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
     restart: unless-stopped
 
   auth-migrate:
@@ -115,6 +139,14 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: money-tracking-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
     restart: unless-stopped
 
 volumes:

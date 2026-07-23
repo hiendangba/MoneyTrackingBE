@@ -59,6 +59,28 @@ func NewRabbitMQPublisher(cfg config.Config) (*RabbitMQPublisher, error) {
 		return nil, fmt.Errorf("declare exchange: %w", err)
 	}
 
+	queue, err := channel.QueueDeclare(
+		cfg.RabbitMQ.EmailQueue,
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		_ = channel.Close()
+		_ = conn.Close()
+		return nil, fmt.Errorf("declare email queue: %w", err)
+	}
+
+	for _, key := range []string{cfg.RabbitMQ.RegisterKey, cfg.RabbitMQ.ResetKey} {
+		if err := channel.QueueBind(queue.Name, key, cfg.RabbitMQ.Exchange, false, nil); err != nil {
+			_ = channel.Close()
+			_ = conn.Close()
+			return nil, fmt.Errorf("bind email queue with routing key %s: %w", key, err)
+		}
+	}
+
 	return &RabbitMQPublisher{
 		conn:        conn,
 		channel:     channel,
@@ -100,9 +122,10 @@ func (p *RabbitMQPublisher) publish(ctx context.Context, routingKey string, mess
 		false,
 		false,
 		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        body,
-			Timestamp:   time.Now(),
+			ContentType:  "application/json",
+			DeliveryMode: amqp.Persistent,
+			Body:         body,
+			Timestamp:    time.Now(),
 		},
 	); err != nil {
 		return fmt.Errorf("publish otp message: %w", err)
