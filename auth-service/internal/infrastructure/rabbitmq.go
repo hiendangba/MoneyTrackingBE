@@ -13,6 +13,8 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+const rabbitPublishConfirmTimeout = 5 * time.Second
+
 type OTPPublisher interface {
 	PublishRegisterOTP(ctx context.Context, email, fullName, otp string, expiresIn time.Duration) error
 	PublishResetOTP(ctx context.Context, email, otp string, expiresIn time.Duration) error
@@ -183,7 +185,9 @@ func (p *RabbitMQPublisher) publishConfirmed(ctx context.Context, routingKey str
 	if confirmation == nil {
 		return errors.New("rabbitmq publisher confirmation is unavailable")
 	}
-	acknowledged, err := confirmation.WaitContext(ctx)
+	confirmCtx, cancel := context.WithTimeout(ctx, rabbitPublishConfirmTimeout)
+	defer cancel()
+	acknowledged, err := confirmation.WaitContext(confirmCtx)
 	if err != nil {
 		return err
 	}

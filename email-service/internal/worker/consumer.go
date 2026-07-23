@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -72,6 +73,9 @@ func (c *Consumer) consume(ctx context.Context) error {
 	if err := c.setupTopology(channel); err != nil {
 		return err
 	}
+	if err := channel.Confirm(false); err != nil {
+		return fmt.Errorf("enable publisher confirms: %w", err)
+	}
 
 	deliveries, err := channel.Consume(
 		c.cfg.Queue,
@@ -95,7 +99,7 @@ func (c *Consumer) consume(ctx context.Context) error {
 			if !ok {
 				return fmt.Errorf("rabbitmq deliveries channel closed")
 			}
-			c.handleDelivery(ctx, delivery)
+			c.handleDelivery(ctx, channel, delivery)
 		}
 	}
 }
@@ -125,7 +129,26 @@ func (c *Consumer) setupTopology(channel *amqp.Channel) error {
 		return fmt.Errorf("declare queue: %w", err)
 	}
 
-	for _, key := range []string{c.cfg.RegisterKey, c.cfg.ResetKey} {
+	retryDelayMillis := c.cfg.RetryDelay.Milliseconds()
+	if _, err := channel.QueueDeclare(
+		c.cfg.RetryQueue,
+		true,
+		false,
+		false,
+		false,
+		amqp.Table{
+			"x-message-ttl":             retryDelayMillis,
+			"x-dead-letter-exchange":    c.cfg.Exchange,
+			"x-dead-letter-routing-key": c.cfg.RetryKey,
+		},
+	); err != nil {
+		return fmt.Errorf("declare retry queue: %w", err)
+	}
+	if _, err := channel.QueueDeclare(c.cfg.DeadQueue, true, false, false, false, nil); err != nil {
+		return fmt.Errorf("declare dead-letter queue: %w", err)
+	}
+
+	for _, key := range []string{c.cfg.RegisterKey, c.cfg.ResetKey, c.cfg.RetryKey} {
 		if err := channel.QueueBind(queue.Name, key, c.cfg.Exchange, false, nil); err != nil {
 			return fmt.Errorf("bind queue with routing key %s: %w", key, err)
 		}
@@ -137,7 +160,7 @@ func (c *Consumer) setupTopology(channel *amqp.Channel) error {
 	return nil
 }
 
-func (c *Consumer) handleDelivery(ctx context.Context, delivery amqp.Delivery) {
+func (c *Consumer) handleDelivery(ctx context.Context, channel *amqp.Channel, delivery amqp.Delivery) {
 	var msg OTPMessage
 	if err := json.Unmarshal(delivery.Body, &msg); err != nil {
 		c.logger.Error("discard invalid otp message", "error", err)
@@ -148,12 +171,83 @@ func (c *Consumer) handleDelivery(ctx context.Context, delivery amqp.Delivery) {
 	subject, body := buildOTPEmail(msg)
 	if err := c.mailer.SendOTP(ctx, msg.Email, subject, body); err != nil {
 		c.logger.Error("send otp email failed", "email", msg.Email, "type", msg.Type, "error", err)
-		_ = delivery.Nack(false, true)
+		retries := messageRetryCount(delivery.Headers)
+		targetQueue := c.cfg.RetryQueue
+		if retries >= c.cfg.MaxRetries {
+			targetQueue = c.cfg.DeadQueue
+		}
+		if publishErr := c.republish(ctx, channel, delivery, targetQueue, retries+1); publishErr != nil {
+			c.logger.Error("republish failed email", "email", msg.Email, "type", msg.Type, "error", publishErr)
+			_ = delivery.Nack(false, true)
+			return
+		}
+		if targetQueue == c.cfg.DeadQueue {
+			c.logger.Error("moved failed email to dead-letter queue", "email", msg.Email, "type", msg.Type)
+		}
+		_ = delivery.Ack(false)
 		return
 	}
 
 	c.logger.Info("sent otp email", "email", msg.Email, "type", msg.Type)
 	_ = delivery.Ack(false)
+}
+
+func (c *Consumer) republish(
+	ctx context.Context,
+	channel *amqp.Channel,
+	delivery amqp.Delivery,
+	targetQueue string,
+	retryCount int,
+) error {
+	headers := make(amqp.Table, len(delivery.Headers)+1)
+	for key, value := range delivery.Headers {
+		headers[key] = value
+	}
+	headers["x-email-retry-count"] = int64(retryCount)
+
+	confirmation, err := channel.PublishWithDeferredConfirmWithContext(
+		ctx,
+		"",
+		targetQueue,
+		false,
+		false,
+		amqp.Publishing{
+			Headers:      headers,
+			ContentType:  delivery.ContentType,
+			DeliveryMode: amqp.Persistent,
+			Body:         delivery.Body,
+			Timestamp:    time.Now(),
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("publish to %s: %w", targetQueue, err)
+	}
+	if confirmation == nil {
+		return errors.New("rabbitmq publisher confirmation is unavailable")
+	}
+	confirmCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	acknowledged, err := confirmation.WaitContext(confirmCtx)
+	if err != nil {
+		return fmt.Errorf("wait for retry publish confirmation: %w", err)
+	}
+	if !acknowledged {
+		return errors.New("rabbitmq rejected retry message")
+	}
+	return nil
+}
+
+func messageRetryCount(headers amqp.Table) int {
+	switch value := headers["x-email-retry-count"].(type) {
+	case int32:
+		return int(value)
+	case int64:
+		return int(value)
+	case int:
+		return value
+	default:
+		return 0
+	}
 }
 
 func buildOTPEmail(msg OTPMessage) (string, string) {

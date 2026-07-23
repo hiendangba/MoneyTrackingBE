@@ -21,9 +21,14 @@ type RabbitMQConfig struct {
 	URL            string
 	Exchange       string
 	Queue          string
+	RetryQueue     string
+	DeadQueue      string
 	RegisterKey    string
 	ResetKey       string
+	RetryKey       string
 	PrefetchCount  int
+	MaxRetries     int
+	RetryDelay     time.Duration
 	ReconnectDelay time.Duration
 }
 
@@ -42,9 +47,14 @@ func Load() (Config, error) {
 			URL:            getEnv("RABBITMQ_URL", ""),
 			Exchange:       getEnv("RABBITMQ_EXCHANGE", "auth.events"),
 			Queue:          getEnv("RABBITMQ_EMAIL_QUEUE", "auth.email.otp"),
+			RetryQueue:     getEnv("RABBITMQ_EMAIL_RETRY_QUEUE", "auth.email.otp.retry"),
+			DeadQueue:      getEnv("RABBITMQ_EMAIL_DEAD_QUEUE", "auth.email.otp.dead"),
 			RegisterKey:    getEnv("RABBITMQ_REGISTER_KEY", "auth.otp.register"),
 			ResetKey:       getEnv("RABBITMQ_RESET_KEY", "auth.otp.reset"),
+			RetryKey:       getEnv("RABBITMQ_EMAIL_RETRY_KEY", "auth.otp.email.retry"),
 			PrefetchCount:  getEnvInt("RABBITMQ_PREFETCH_COUNT", 5),
+			MaxRetries:     getEnvInt("RABBITMQ_EMAIL_MAX_RETRIES", 3),
+			RetryDelay:     getEnvDuration("RABBITMQ_EMAIL_RETRY_DELAY", 30*time.Second),
 			ReconnectDelay: getEnvDuration("RABBITMQ_RECONNECT_DELAY", 5*time.Second),
 		},
 		SMTP: SMTPConfig{
@@ -81,6 +91,14 @@ func Load() (Config, error) {
 	cfg.SMTP.FromAddr = fromAddr
 	if cfg.RabbitMQ.PrefetchCount <= 0 {
 		return Config{}, errors.New("RABBITMQ_PREFETCH_COUNT must be greater than 0")
+	}
+	if cfg.RabbitMQ.MaxRetries <= 0 || cfg.RabbitMQ.RetryDelay <= 0 || cfg.RabbitMQ.ReconnectDelay <= 0 {
+		return Config{}, errors.New("RabbitMQ retry values must be positive")
+	}
+	if cfg.RabbitMQ.Queue == cfg.RabbitMQ.RetryQueue ||
+		cfg.RabbitMQ.Queue == cfg.RabbitMQ.DeadQueue ||
+		cfg.RabbitMQ.RetryQueue == cfg.RabbitMQ.DeadQueue {
+		return Config{}, errors.New("RabbitMQ email queue names must be distinct")
 	}
 
 	return cfg, nil
