@@ -87,17 +87,17 @@ func Load() (Config, error) {
 			MaxConns: int32(getEnvInt("POSTGRES_MAX_CONNS", 10)),
 			MinConns: int32(getEnvInt("POSTGRES_MIN_CONNS", 5)),
 		},
-		// Redis: RedisConfig{
-		// 	Addr:     getEnv("REDIS_ADDR", "localhost:6379"),
-		// 	Password: getEnv("REDIS_PASSWORD", ""),
-		// 	DB:       getEnvInt("REDIS_DB", 0),
-		// },
-		// RabbitMQ: RabbitMQConfig{
-		// 	URL:         getEnv("RABBITMQ_URL", ""),
-		// 	Exchange:    getEnv("RABBITMQ_EXCHANGE", "auth.events"),
-		// 	RegisterKey: getEnv("RABBITMQ_REGISTER_KEY", "auth.otp.register"),
-		// 	ResetKey:    getEnv("RABBITMQ_RESET_KEY", "auth.otp.reset"),
-		// },
+		Redis: RedisConfig{
+			Addr:     getEnv("REDIS_ADDR", "localhost:6379"),
+			Password: getEnv("REDIS_PASSWORD", ""),
+			DB:       getEnvInt("REDIS_DB", 0),
+		},
+		RabbitMQ: RabbitMQConfig{
+			URL:         getEnv("RABBITMQ_URL", ""),
+			Exchange:    getEnv("RABBITMQ_EXCHANGE", "auth.events"),
+			RegisterKey: getEnv("RABBITMQ_REGISTER_KEY", "auth.otp.register"),
+			ResetKey:    getEnv("RABBITMQ_RESET_KEY", "auth.otp.reset"),
+		},
 		JWT: JWTConfig{
 			Secret:            getEnv("JWT_SECRET", ""),
 			AccessTTL:         getEnvDuration("JWT_ACCESS_TTL", 15*time.Minute),
@@ -124,9 +124,9 @@ func Load() (Config, error) {
 	if cfg.Postgres.Password == "" {
 		missing = append(missing, "POSTGRES_PASSWORD")
 	}
-	// if cfg.RabbitMQ.URL == "" {
-	// 	missing = append(missing, "RABBITMQ_URL")
-	// }
+	if cfg.RabbitMQ.URL == "" {
+		missing = append(missing, "RABBITMQ_URL")
+	}
 	if cfg.JWT.Secret == "" {
 		missing = append(missing, "JWT_SECRET")
 	}

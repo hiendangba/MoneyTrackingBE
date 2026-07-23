@@ -13,7 +13,7 @@ Go auth service for MoneyTracking.
 
 ## Environment
 
-Copy `.env.example` and fill the values.
+Create a local `.env` file when running the service outside Docker Compose.
 
 ## Run
 

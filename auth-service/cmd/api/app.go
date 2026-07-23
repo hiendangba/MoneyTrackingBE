@@ -25,21 +25,21 @@ func run() error {
 	}
 	defer db.Close()
 
-	// redisClient, err := infrastructure.NewRedis(ctx, cfg)
-	// if err != nil {
-	// 	return fmt.Errorf("connect redis: %w", err)
-	// }
-	// defer closeWithLog(logger, "redis", redisClient.Close)
+	redisClient, err := infrastructure.NewRedis(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("connect redis: %w", err)
+	}
+	defer closeWithLog(logger, "redis", redisClient.Close)
 
-	// rabbitPublisher, err := infrastructure.NewRabbitMQPublisher(cfg)
-	// if err != nil {
-	// 	return fmt.Errorf("connect rabbitmq: %w", err)
-	// }
-	// defer closeWithLog(logger, "rabbitmq", rabbitPublisher.Close)
+	rabbitPublisher, err := infrastructure.NewRabbitMQPublisher(cfg)
+	if err != nil {
+		return fmt.Errorf("connect rabbitmq: %w", err)
+	}
+	defer closeWithLog(logger, "rabbitmq", rabbitPublisher.Close)
 
 	userRepo := repository.NewPostgresUserRepository(db)
 	jwtService := service.NewJWTService(cfg.JWT)
-	authService := service.NewAuthService(cfg.Auth, userRepo, jwtService, nil, nil, logger)
+	authService := service.NewAuthService(cfg.Auth, userRepo, jwtService, redisClient, rabbitPublisher, logger)
 
 	router := httptransport.NewRouter(cfg, logger, authService, jwtService)
 	server := &http.Server{
