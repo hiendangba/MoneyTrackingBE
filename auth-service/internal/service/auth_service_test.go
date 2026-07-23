@@ -12,6 +12,7 @@ import (
 	apperrors "auth-service/internal/errors"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -73,6 +74,30 @@ func TestLogoutFailsClosedWhenRedisIsUnavailable(t *testing.T) {
 
 	if err := authService.MobileLogout(context.Background(), accessToken, ""); err == nil {
 		t.Fatal("MobileLogout() succeeded while Redis was unavailable")
+	}
+}
+
+func TestLogoutRevokesRefreshFamilyWhenAccessTokenIsExpired(t *testing.T) {
+	t.Parallel()
+
+	authService, jwtService, redisServer := newTestAuthService(t)
+	defer redisServer.Close()
+
+	refreshToken, _, err := jwtService.GenerateRefreshToken("user-1", "session-1", 1)
+	if err != nil {
+		t.Fatalf("GenerateRefreshToken() error = %v", err)
+	}
+	claims := validTestClaims(domain.TokenTypeAccess, "money-tracking-api")
+	claims.SessionID = "session-1"
+	claims.IssuedAt = jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))
+	claims.NotBefore = jwt.NewNumericDate(time.Now().Add(-10 * time.Minute))
+	claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(-5 * time.Minute))
+	expiredAccessToken := signTestToken(t, claims, jwtService.privateKey, jwtService.KeyID())
+	if err := authService.MobileLogout(context.Background(), expiredAccessToken, refreshToken); err != nil {
+		t.Fatalf("MobileLogout() error = %v", err)
+	}
+	if _, err := authService.MobileRefresh(context.Background(), refreshToken); !errors.Is(err, apperrors.ErrSessionRevoked) {
+		t.Fatalf("MobileRefresh() after logout error = %v, want ErrSessionRevoked", err)
 	}
 }
 

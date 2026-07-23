@@ -34,7 +34,9 @@ func (m *Mailer) SendOTP(ctx context.Context, to, subject, body string) error {
 	if err != nil {
 		return fmt.Errorf("dial smtp %s: %w", addr, err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	if err := conn.SetDeadline(time.Now().Add(30 * time.Second)); err != nil {
 		return fmt.Errorf("set smtp deadline: %w", err)
@@ -44,7 +46,9 @@ func (m *Mailer) SendOTP(ctx context.Context, to, subject, body string) error {
 	if err != nil {
 		return fmt.Errorf("create smtp client: %w", err)
 	}
-	defer client.Close()
+	defer func() {
+		_ = client.Close()
+	}()
 
 	if ok, _ := client.Extension("STARTTLS"); ok {
 		tlsConfig := &tls.Config{ServerName: m.cfg.Host, MinVersion: tls.VersionTLS12}

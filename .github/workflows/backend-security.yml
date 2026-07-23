@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "auth-service/**"
+      - "email-service/**"
       - "api-gateway/**"
       - "compose*.yaml"
       - "render.yaml"
@@ -12,6 +13,7 @@ on:
     branches: [main]
     paths:
       - "auth-service/**"
+      - "email-service/**"
       - "api-gateway/**"
       - "compose*.yaml"
       - "render.yaml"
@@ -39,6 +41,29 @@ jobs:
         with:
           version: v2.11.4
           working-directory: auth-service
+      - name: Gosec
+        run: go run github.com/securego/gosec/v2/cmd/gosec@v2.24.7 ./...
+      - name: Govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  email-service:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: email-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: email-service/go.mod
+          cache-dependency-path: email-service/go.sum
+      - run: go test ./...
+      - run: go test -race ./...
+      - run: go vet ./...
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.11.4
+          working-directory: email-service
       - name: Gosec
         run: go run github.com/securego/gosec/v2/cmd/gosec@v2.24.7 ./...
       - name: Govulncheck

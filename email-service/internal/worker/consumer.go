@@ -57,13 +57,17 @@ func (c *Consumer) consume(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("dial rabbitmq: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	channel, err := conn.Channel()
 	if err != nil {
 		return fmt.Errorf("open rabbitmq channel: %w", err)
 	}
-	defer channel.Close()
+	defer func() {
+		_ = channel.Close()
+	}()
 
 	if err := c.setupTopology(channel); err != nil {
 		return err

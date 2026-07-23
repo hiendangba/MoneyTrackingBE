@@ -170,7 +170,10 @@ static_resources:
                         - match: {path: /api/auth/logout}
                         - match: {prefix: /api/auth/mobile/}
                         - match: {prefix: "/"}
-                          requires: {provider_name: money_tracking_access}
+                          requires:
+                            provider_and_audiences:
+                              provider_name: money_tracking_access
+                              audiences: [money-tracking-api]
                   - name: envoy.filters.http.rbac
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.rbac.v3.RBAC
