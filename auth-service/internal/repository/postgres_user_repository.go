@@ -23,9 +23,10 @@ func NewPostgresUserRepository(db *pgxpool.Pool) *PostgresUserRepository {
 
 func (r *PostgresUserRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	query := `
-		SELECT id, fullname, email, password_hash, role_id, is_active, created_at, updated_at, deleted_at
-		FROM users
-		WHERE email = $1 AND deleted_at IS NULL
+		SELECT u.id, u.fullname, u.email, u.password_hash, u.role_id, r.code, r.is_active, u.session_version, u.is_active, u.created_at, u.updated_at, u.deleted_at
+		FROM users u
+		JOIN roles r ON r.id = u.role_id
+		WHERE u.email = $1 AND u.deleted_at IS NULL
 	`
 
 	user, err := scanUser(ctx, r.db.QueryRow(ctx, query, strings.ToLower(email)))
@@ -41,9 +42,10 @@ func (r *PostgresUserRepository) FindByEmail(ctx context.Context, email string) 
 
 func (r *PostgresUserRepository) FindByID(ctx context.Context, id string) (*domain.User, error) {
 	query := `
-		SELECT id, fullname, email, password_hash, role_id, is_active, created_at, updated_at, deleted_at
-		FROM users
-		WHERE id = $1 AND deleted_at IS NULL
+		SELECT u.id, u.fullname, u.email, u.password_hash, u.role_id, r.code, r.is_active, u.session_version, u.is_active, u.created_at, u.updated_at, u.deleted_at
+		FROM users u
+		JOIN roles r ON r.id = u.role_id
+		WHERE u.id = $1 AND u.deleted_at IS NULL
 	`
 
 	user, err := scanUser(ctx, r.db.QueryRow(ctx, query, id))
@@ -58,7 +60,7 @@ func (r *PostgresUserRepository) FindByID(ctx context.Context, id string) (*doma
 }
 
 func (r *PostgresUserRepository) FindRoleIDByCode(ctx context.Context, code string) (string, error) {
-	query := `SELECT id FROM roles WHERE code = $1 AND deleted_at IS NULL`
+	query := `SELECT id FROM roles WHERE code = $1 AND is_active = TRUE AND deleted_at IS NULL`
 	var roleID string
 	if err := r.db.QueryRow(ctx, query, code).Scan(&roleID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -71,9 +73,14 @@ func (r *PostgresUserRepository) FindRoleIDByCode(ctx context.Context, code stri
 
 func (r *PostgresUserRepository) Create(ctx context.Context, user domain.User) (*domain.User, error) {
 	query := `
-		INSERT INTO users (id, fullname, email, password_hash, role_id, is_active, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, fullname, email, password_hash, role_id, is_active, created_at, updated_at, deleted_at
+		WITH inserted AS (
+			INSERT INTO users (id, fullname, email, password_hash, role_id, is_active, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			RETURNING id, fullname, email, password_hash, role_id, session_version, is_active, created_at, updated_at, deleted_at
+		)
+		SELECT i.id, i.fullname, i.email, i.password_hash, i.role_id, r.code, r.is_active, i.session_version, i.is_active, i.created_at, i.updated_at, i.deleted_at
+		FROM inserted i
+		JOIN roles r ON r.id = i.role_id
 	`
 
 	created, err := scanUser(ctx, r.db.QueryRow(
@@ -98,16 +105,21 @@ func (r *PostgresUserRepository) Create(ctx context.Context, user domain.User) (
 	return created, nil
 }
 
-func (r *PostgresUserRepository) UpdatePassword(ctx context.Context, userID string, passwordHash string) error {
-	query := `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL`
-	commandTag, err := r.db.Exec(ctx, query, passwordHash, userID)
-	if err != nil {
-		return fmt.Errorf("update password: %w", err)
+func (r *PostgresUserRepository) UpdatePasswordAndIncrementSessionVersion(ctx context.Context, userID string, passwordHash string) (int64, error) {
+	query := `
+		UPDATE users
+		SET password_hash = $1, session_version = session_version + 1, updated_at = NOW()
+		WHERE id = $2 AND deleted_at IS NULL
+		RETURNING session_version
+	`
+	var sessionVersion int64
+	if err := r.db.QueryRow(ctx, query, passwordHash, userID).Scan(&sessionVersion); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, apperrors.ErrUserNotFound
+		}
+		return 0, fmt.Errorf("update password and session version: %w", err)
 	}
-	if commandTag.RowsAffected() == 0 {
-		return apperrors.ErrUserNotFound
-	}
-	return nil
+	return sessionVersion, nil
 }
 
 func scanUser(_ context.Context, row pgx.Row) (*domain.User, error) {
@@ -118,6 +130,9 @@ func scanUser(_ context.Context, row pgx.Row) (*domain.User, error) {
 		&user.Email,
 		&user.PasswordHash,
 		&user.RoleID,
+		&user.RoleCode,
+		&user.RoleActive,
+		&user.SessionVersion,
 		&user.IsActive,
 		&user.CreatedAt,
 		&user.UpdatedAt,

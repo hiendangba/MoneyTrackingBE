@@ -1,0 +1,2 @@
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS session_version bigint NOT NULL DEFAULT 1;

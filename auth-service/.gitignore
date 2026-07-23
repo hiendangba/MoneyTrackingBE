@@ -1,6 +1,8 @@
 .env
 .idea/
 .vscode/
+keys/*.pem
+!keys/.gitkeep
 bin/
 dist/
 tmp/

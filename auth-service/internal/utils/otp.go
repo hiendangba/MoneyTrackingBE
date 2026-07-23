@@ -14,12 +14,13 @@ func GenerateOTP(length int) (string, error) {
 	}
 
 	digits := make([]byte, length)
+	const decimalDigits = "0123456789"
 	for i := range digits {
 		n, err := rand.Int(rand.Reader, big.NewInt(10))
 		if err != nil {
 			return "", fmt.Errorf("generate otp digit: %w", err)
 		}
-		digits[i] = byte('0' + n.Int64())
+		digits[i] = decimalDigits[n.Int64()]
 	}
 
 	return string(digits), nil
