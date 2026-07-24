@@ -286,19 +286,38 @@ func (s *AuthService) rotateSession(ctx context.Context, refreshToken string) (*
 }
 
 func (s *AuthService) revokeSessionFromTokens(ctx context.Context, accessToken, refreshToken string) error {
-	var claims *domain.TokenClaims
-	var err error
-	if strings.TrimSpace(accessToken) != "" {
-		claims, err = s.jwtService.ParseAccessToken(accessToken)
-	} else if strings.TrimSpace(refreshToken) != "" {
-		claims, err = s.jwtService.ParseRefreshToken(refreshToken)
-	} else {
+	accessToken = strings.TrimSpace(accessToken)
+	refreshToken = strings.TrimSpace(refreshToken)
+	if accessToken == "" && refreshToken == "" {
 		return nil
 	}
-	if err != nil {
+
+	var refreshClaims *domain.TokenClaims
+	if refreshToken != "" {
+		var err error
+		refreshClaims, err = s.jwtService.ParseRefreshToken(refreshToken)
+		if err != nil {
+			return apperrors.ErrInvalidToken
+		}
+	}
+
+	var accessClaims *domain.TokenClaims
+	if accessToken != "" {
+		var err error
+		accessClaims, err = s.jwtService.ParseAccessToken(accessToken)
+		if err != nil && refreshClaims == nil {
+			return apperrors.ErrInvalidToken
+		}
+	}
+
+	if accessClaims != nil && refreshClaims != nil &&
+		(accessClaims.SessionID != refreshClaims.SessionID || accessClaims.Subject != refreshClaims.Subject) {
 		return apperrors.ErrInvalidToken
 	}
-	return s.revokeSession(ctx, claims.SessionID)
+	if refreshClaims != nil {
+		return s.revokeSession(ctx, refreshClaims.SessionID)
+	}
+	return s.revokeSession(ctx, accessClaims.SessionID)
 }
 
 func (s *AuthService) ForgotPassword(ctx context.Context, req dto.ForgotPasswordRequest) error {

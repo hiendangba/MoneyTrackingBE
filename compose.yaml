@@ -43,6 +43,11 @@ services:
       RABBITMQ_URL: amqp://${RABBITMQ_USERNAME:?RABBITMQ_USERNAME is required}:${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}@rabbitmq:5672/
       RABBITMQ_EXCHANGE: auth.events
       RABBITMQ_EMAIL_QUEUE: auth.email.otp
+      RABBITMQ_EMAIL_RETRY_QUEUE: auth.email.otp.retry
+      RABBITMQ_EMAIL_DEAD_QUEUE: auth.email.otp.dead
+      RABBITMQ_EMAIL_RETRY_KEY: auth.otp.email.retry
+      RABBITMQ_EMAIL_MAX_RETRIES: 3
+      RABBITMQ_EMAIL_RETRY_DELAY: 30s
       RABBITMQ_REGISTER_KEY: auth.otp.register
       RABBITMQ_RESET_KEY: auth.otp.reset
       JWT_PRIVATE_KEY_PATH: /run/secrets/jwt-private.pem
