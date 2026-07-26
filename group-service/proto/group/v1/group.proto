@@ -1,0 +1,154 @@
+syntax = "proto3";
+
+package group.v1;
+
+option go_package = "group-service/gen/group/v1;groupv1";
+
+import "google/protobuf/timestamp.proto";
+
+enum MemberRole {
+  MEMBER_ROLE_UNSPECIFIED = 0;
+  MEMBER_ROLE_OWNER = 1;
+  MEMBER_ROLE_MEMBER = 2;
+}
+
+enum InvitationStatus {
+  INVITATION_STATUS_UNSPECIFIED = 0;
+  INVITATION_STATUS_PENDING = 1;
+  INVITATION_STATUS_ACCEPTED = 2;
+  INVITATION_STATUS_REJECTED = 3;
+  INVITATION_STATUS_EXPIRED = 4;
+}
+
+message Group {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  bool is_active = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+message GroupMember {
+  string group_id = 1;
+  string user_id = 2;
+  MemberRole role = 3;
+  google.protobuf.Timestamp joined_at = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+message GroupInvitation {
+  string id = 1;
+  string group_id = 2;
+  string invited_user_id = 3;
+  string invited_by = 4;
+  MemberRole role = 5;
+  InvitationStatus status = 6;
+  string token = 7;
+  google.protobuf.Timestamp expired_at = 8;
+  google.protobuf.Timestamp responded_at = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+message CreateGroupRequest {
+  string name = 1;
+  string description = 2;
+  string creator_user_id = 3;
+}
+
+message GetGroupRequest {
+  string id = 1;
+}
+
+message ListGroupsRequest {
+  string user_id = 1;
+  bool include_inactive = 2;
+}
+
+message ListGroupsResponse {
+  repeated Group groups = 1;
+}
+
+message UpdateGroupRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional bool is_active = 4;
+}
+
+message DeleteGroupRequest {
+  string id = 1;
+}
+
+message DeleteGroupResponse {
+  string message = 1;
+}
+
+message ListMembersRequest {
+  string group_id = 1;
+}
+
+message ListMembersResponse {
+  repeated GroupMember members = 1;
+}
+
+message GetMembershipRequest {
+  string group_id = 1;
+  string user_id = 2;
+}
+
+message AddMemberRequest {
+  string group_id = 1;
+  string user_id = 2;
+  MemberRole role = 3;
+}
+
+message RemoveMemberRequest {
+  string group_id = 1;
+  string user_id = 2;
+}
+
+message DeleteGroupMemberResponse {
+  string message = 1;
+}
+
+message InviteMemberRequest {
+  string group_id = 1;
+  string invited_user_id = 2;
+  string invited_by = 3;
+  MemberRole role = 4;
+  google.protobuf.Timestamp expired_at = 5;
+}
+
+message ListInvitationsRequest {
+  string group_id = 1;
+}
+
+message ListInvitationsResponse {
+  repeated GroupInvitation invitations = 1;
+}
+
+message RespondInvitationRequest {
+  string invitation_id = 1;
+  bool accepted = 2;
+}
+
+service GroupService {
+  rpc CreateGroup(CreateGroupRequest) returns (Group);
+  rpc GetGroup(GetGroupRequest) returns (Group);
+  rpc ListGroups(ListGroupsRequest) returns (ListGroupsResponse);
+  rpc UpdateGroup(UpdateGroupRequest) returns (Group);
+  rpc DeleteGroup(DeleteGroupRequest) returns (DeleteGroupResponse);
+
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
+  rpc GetMembership(GetMembershipRequest) returns (GroupMember);
+  rpc AddMember(AddMemberRequest) returns (GroupMember);
+  rpc RemoveMember(RemoveMemberRequest) returns (DeleteGroupMemberResponse);
+
+  rpc InviteMember(InviteMemberRequest) returns (GroupInvitation);
+  rpc ListInvitations(ListInvitationsRequest) returns (ListInvitationsResponse);
+  rpc RespondInvitation(RespondInvitationRequest) returns (GroupInvitation);
+}
+
