@@ -114,21 +114,4 @@ jobs:
           docker build -t money-tracking-auth:ci auth-service
           docker build -t money-tracking-email:ci email-service
           docker build -t money-tracking-group:ci group-service
-          docker build -t money-tracking-envoy:ci api-gateway
-
-      - name: Validate local Envoy config
-        run: |
-          docker run --rm \
-            -v "$PWD/api-gateway/certs:/etc/envoy/certs:ro" \
-            -e 'CORS_ALLOWED_ORIGIN_REGEX=^https://frontend\.example$' \
-            money-tracking-envoy:ci --mode validate
-
-      - name: Validate Render Envoy config
-        run: |
-          docker run --rm \
-            -e ENVOY_RENDER_MODE=true \
-            -e PORT=10001 \
-            -e AUTH_SERVICE_HOST=auth-service \
-            -e AUTH_SERVICE_PORT=8080 \
-            -e 'CORS_ALLOWED_ORIGIN_REGEX=^https://frontend\.example$' \
-            money-tracking-envoy:ci --mode validate
+          docker build -t money-tracking-api-gateway:ci .

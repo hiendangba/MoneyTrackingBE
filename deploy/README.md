@@ -1,8 +1,8 @@
 # Backend CI/CD
 
-This repository now includes two GitHub Actions workflows:
+This repository now includes two GitHub Actions workflows for VPS deployment:
 
-- `Backend CI`: runs tests, race checks, `go vet`, `golangci-lint`, `gosec`, `govulncheck`, Compose validation, and Docker image build checks.
+- `Backend CI`: runs tests, race checks, `go vet`, `golangci-lint`, `gosec`, `govulncheck`, Compose validation, and Docker image build checks for the current Go-based gateway and services.
 - `Backend CD`: builds and pushes production Docker images to GHCR, then deploys them over SSH with Docker Compose.
 
 ## What you need in GitHub
@@ -43,8 +43,6 @@ The deploy workflow expects these files to already exist on the target host:
 
 - `${DEPLOY_PATH}/auth-service/keys/jwt-private.pem`
 - `${DEPLOY_PATH}/auth-service/keys/jwt-public.pem`
-- `${DEPLOY_PATH}/api-gateway/certs/fullchain.pem`
-- `${DEPLOY_PATH}/api-gateway/certs/privkey.pem`
 
 The workflow syncs:
 
@@ -57,10 +55,9 @@ Prepare the VPS once:
 
 ```bash
 mkdir -p /opt/money-tracking/auth-service/keys
-mkdir -p /opt/money-tracking/api-gateway/certs
 ```
 
-Copy your JWT and TLS files into those folders, then point `DEPLOY_PATH` at that directory.
+Copy your JWT files into that folder, then point `DEPLOY_PATH` at that directory.
 
 ## Deploy behavior
 
