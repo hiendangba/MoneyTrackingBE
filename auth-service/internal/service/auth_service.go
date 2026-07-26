@@ -450,6 +450,25 @@ func (s *AuthService) Me(ctx context.Context, userID string) (*dto.MeResponse, e
 	}, nil
 }
 
+func (s *AuthService) ValidateAccessToken(ctx context.Context, accessToken string) (*domain.TokenClaims, *domain.User, error) {
+	claims, err := s.jwtService.ParseAccessToken(accessToken)
+	if err != nil {
+		return nil, nil, apperrors.ErrInvalidToken
+	}
+
+	user, err := s.userRepo.FindByID(ctx, claims.Subject)
+	if err != nil {
+		return nil, nil, fmt.Errorf("find access user: %w", err)
+	}
+	if err := validateActiveUser(user); err != nil {
+		return nil, nil, err
+	}
+	if user.SessionVersion != claims.SessionVersion {
+		return nil, nil, apperrors.ErrSessionRevoked
+	}
+	return claims, user, nil
+}
+
 func (s *AuthService) AccessCookieName() string {
 	return s.jwtCfg.AccessCookieName
 }
