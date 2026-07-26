@@ -1,15 +1,24 @@
-FROM envoyproxy/envoy:v1.39.0
+FROM golang:1.26.5-alpine AS build
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends gettext-base \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
 
-COPY envoy.yaml /etc/envoy/envoy.yaml
-COPY envoy.render.yaml.template /etc/envoy/envoy.render.yaml.template
-COPY docker-entrypoint.sh /usr/local/bin/money-tracking-envoy-entrypoint
+RUN apk add --no-cache ca-certificates git
 
-RUN chmod 0555 /usr/local/bin/money-tracking-envoy-entrypoint
+COPY auth-service ./auth-service
+COPY group-service ./group-service
+COPY api-gateway ./api-gateway
 
-EXPOSE 80 443 9901
+WORKDIR /src/api-gateway
+RUN go mod download
+RUN CGO_ENABLED=0 go build -o /out/api-gateway ./cmd/api
 
-ENTRYPOINT ["/usr/local/bin/money-tracking-envoy-entrypoint"]
+FROM alpine:3.22
+
+RUN apk add --no-cache ca-certificates
+
+WORKDIR /app
+COPY --from=build /out/api-gateway /usr/local/bin/api-gateway
+
+EXPOSE 8080
+
+ENTRYPOINT ["api-gateway"]

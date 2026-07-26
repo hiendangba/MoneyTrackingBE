@@ -473,6 +473,10 @@ func (s *AuthService) AccessCookieName() string {
 	return s.jwtCfg.AccessCookieName
 }
 
+func (s *AuthService) RefreshCookieName() string {
+	return s.jwtCfg.RefreshCookieName
+}
+
 func (s *AuthService) extractAccessToken(r *http.Request) string {
 	authHeader := strings.TrimSpace(r.Header.Get("Authorization"))
 	const bearer = "Bearer "

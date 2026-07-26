@@ -4,11 +4,18 @@ import (
 	"auth-service/internal/infrastructure"
 	"auth-service/internal/repository"
 	"auth-service/internal/service"
+	grpctransport "auth-service/internal/transport/grpc"
 	httptransport "auth-service/internal/transport/http"
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
+
+	authv1 "auth-service/gen/auth/v1"
+	"google.golang.org/grpc"
+	grpchealth "google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func run() error {
@@ -45,6 +52,17 @@ func run() error {
 	}
 	authService := service.NewAuthService(cfg.Auth, userRepo, jwtService, redisClient, rabbitPublisher)
 	menuService := service.NewMenuService(menuRepo)
+	grpcHandler := grpctransport.NewServer(authService, menuService, jwtService, logger)
+	healthServer := grpchealth.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			grpctransport.LoggingUnaryInterceptor(logger),
+			grpctransport.RecoveryUnaryInterceptor(logger),
+		),
+	)
+	authv1.RegisterAuthServiceServer(grpcServer, grpcHandler)
+	healthpb.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 
 	router, err := httptransport.NewRouter(cfg, logger, authService, menuService, jwtService, redisClient)
 	if err != nil {
@@ -60,5 +78,10 @@ func run() error {
 		MaxHeaderBytes:    32 << 10,
 	}
 
-	return serve(server, logger)
+	grpcListener, err := net.Listen("tcp", cfg.GRPC.Address())
+	if err != nil {
+		return fmt.Errorf("listen grpc: %w", err)
+	}
+
+	return serve(server, grpcServer, grpcListener, logger)
 }

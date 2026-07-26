@@ -3,22 +3,33 @@ name: money-tracking
 services:
   api-gateway:
     build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api-gateway/Dockerfile
     environment:
-      ENVOY_UID: "0"
-      ENVOY_LOG_LEVEL: ${ENVOY_LOG_LEVEL:-info}
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8080
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      AUTH_SERVICE_ADDR: auth-service:50051
+      GROUP_SERVICE_ADDR: group-service:50052
+      REQUEST_TIMEOUT: 10s
+      AUTH_ACCESS_TTL: 5m
+      AUTH_REFRESH_TTL: ${JWT_REFRESH_TTL:-168h}
+      AUTH_COOKIE_SECURE: "false"
+      AUTH_COOKIE_SAME_SITE: Lax
+      AUTH_COOKIE_DOMAIN: ""
+      AUTH_ADMIN_ROLE_CODE: admin
+      GATEWAY_CSRF_COOKIE_NAME: csrf_token
       CORS_ALLOWED_ORIGIN_REGEX: ${CORS_ALLOWED_ORIGIN_REGEX:?CORS_ALLOWED_ORIGIN_REGEX is required}
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./api-gateway/certs:/etc/envoy/certs:ro
+      - "8080:8080"
     depends_on:
       auth-service:
         condition: service_started
+      group-service:
+        condition: service_started
     networks:
       - edge
+      - data
     restart: unless-stopped
 
   auth-service:
