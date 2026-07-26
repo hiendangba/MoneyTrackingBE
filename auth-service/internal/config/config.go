@@ -13,6 +13,7 @@ import (
 
 type Config struct {
 	Server   ServerConfig
+	GRPC     GRPCServerConfig
 	Postgres PostgresConfig
 	Redis    RedisConfig
 	RabbitMQ RabbitMQConfig
@@ -27,6 +28,15 @@ type ServerConfig struct {
 }
 
 func (c ServerConfig) Address() string {
+	return fmt.Sprintf("%s:%d", c.Host, c.Port)
+}
+
+type GRPCServerConfig struct {
+	Host string
+	Port int
+}
+
+func (c GRPCServerConfig) Address() string {
 	return fmt.Sprintf("%s:%d", c.Host, c.Port)
 }
 
@@ -95,6 +105,10 @@ func Load() (Config, error) {
 		Server: ServerConfig{
 			Host: getEnv("SERVER_HOST", "0.0.0.0"),
 			Port: getEnvInt("SERVER_PORT", 8080),
+		},
+		GRPC: GRPCServerConfig{
+			Host: getEnv("GRPC_SERVER_HOST", "0.0.0.0"),
+			Port: getEnvInt("GRPC_SERVER_PORT", 50051),
 		},
 		Postgres: PostgresConfig{
 			Host:     getEnv("POSTGRES_HOST", "localhost"),
@@ -190,7 +204,7 @@ func Load() (Config, error) {
 	if cfg.JWT.RefreshTTL <= cfg.JWT.AccessTTL {
 		return Config{}, errors.New("JWT_REFRESH_TTL must exceed JWT_ACCESS_TTL")
 	}
-	if cfg.Server.Port <= 0 || cfg.Server.Port > 65535 || cfg.Postgres.Port <= 0 || cfg.Postgres.Port > 65535 {
+	if cfg.Server.Port <= 0 || cfg.Server.Port > 65535 || cfg.GRPC.Port <= 0 || cfg.GRPC.Port > 65535 || cfg.Postgres.Port <= 0 || cfg.Postgres.Port > 65535 {
 		return Config{}, errors.New("server and postgres ports must be between 1 and 65535")
 	}
 	if cfg.Postgres.MaxConns <= 0 || cfg.Postgres.MinConns < 0 || cfg.Postgres.MinConns > cfg.Postgres.MaxConns {

@@ -1,0 +1,172 @@
+syntax = "proto3";
+
+package auth.v1;
+
+option go_package = "auth-service/gen/auth/v1;authv1";
+
+message MessageResponse {
+  string message = 1;
+}
+
+message TokenResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  string token_type = 3;
+  int64 expires_in = 4;
+  int64 refresh_expires_in = 5;
+}
+
+message RegisterRequest {
+  string fullname = 1;
+  string email = 2;
+  string password = 3;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message VerifyOTPRequest {
+  string email = 1;
+  string otp = 2;
+  string purpose = 3;
+}
+
+message ForgotPasswordRequest {
+  string email = 1;
+}
+
+message ResetPasswordRequest {
+  string email = 1;
+  string otp = 2;
+  string new_password = 3;
+}
+
+message ChangePasswordRequest {
+  string user_id = 1;
+  string current_password = 2;
+  string new_password = 3;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message LogoutRequest {
+  string access_token = 1;
+  string refresh_token = 2;
+}
+
+message MeRequest {
+  string user_id = 1;
+}
+
+message MeResponse {
+  string id = 1;
+  string fullname = 2;
+  string email = 3;
+  string role_id = 4;
+  string role_code = 5;
+}
+
+message ValidateAccessTokenRequest {
+  string access_token = 1;
+}
+
+message ValidateAccessTokenResponse {
+  string user_id = 1;
+  string role_id = 2;
+  string role_code = 3;
+  string session_id = 4;
+  int64 session_version = 5;
+}
+
+message Menu {
+  string id = 1;
+  string code = 2;
+  string name = 3;
+  string route = 4;
+  string icon = 5;
+  string parent_id = 6;
+  int32 sort_order = 7;
+  bool is_active = 8;
+}
+
+message MenuNode {
+  string id = 1;
+  string code = 2;
+  string name = 3;
+  string route = 4;
+  string icon = 5;
+  int32 sort_order = 6;
+  repeated MenuNode children = 7;
+}
+
+message ListMenusRequest {}
+
+message ListMenusResponse {
+  repeated Menu menus = 1;
+}
+
+message GetMenuRequest {
+  string id = 1;
+}
+
+message TreeMenusRequest {}
+
+message TreeMenusResponse {
+  repeated MenuNode nodes = 1;
+}
+
+message GetJWKSRequest {}
+
+message GetJWKSResponse {
+  string jwks_json = 1;
+}
+
+message CreateMenuRequest {
+  string code = 1;
+  string name = 2;
+  string route = 3;
+  string icon = 4;
+  string parent_id = 5;
+  int32 sort_order = 6;
+  optional bool is_active = 7;
+}
+
+message UpdateMenuRequest {
+  string id = 1;
+  optional string code = 2;
+  optional string name = 3;
+  optional string route = 4;
+  optional string icon = 5;
+  optional string parent_id = 6;
+  optional int32 sort_order = 7;
+  optional bool is_active = 8;
+}
+
+message DeleteMenuRequest {
+  string id = 1;
+}
+
+service AuthService {
+  rpc Register(RegisterRequest) returns (MessageResponse);
+  rpc VerifyOTP(VerifyOTPRequest) returns (TokenResponse);
+  rpc Login(LoginRequest) returns (TokenResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (TokenResponse);
+  rpc Logout(LogoutRequest) returns (MessageResponse);
+  rpc ForgotPassword(ForgotPasswordRequest) returns (MessageResponse);
+  rpc ResetPassword(ResetPasswordRequest) returns (MessageResponse);
+  rpc ChangePassword(ChangePasswordRequest) returns (MessageResponse);
+  rpc Me(MeRequest) returns (MeResponse);
+  rpc ValidateAccessToken(ValidateAccessTokenRequest) returns (ValidateAccessTokenResponse);
+
+  rpc ListMenus(ListMenusRequest) returns (ListMenusResponse);
+  rpc GetMenu(GetMenuRequest) returns (Menu);
+  rpc TreeMenus(TreeMenusRequest) returns (TreeMenusResponse);
+  rpc GetJWKS(GetJWKSRequest) returns (GetJWKSResponse);
+  rpc CreateMenu(CreateMenuRequest) returns (Menu);
+  rpc UpdateMenu(UpdateMenuRequest) returns (Menu);
+  rpc DeleteMenu(DeleteMenuRequest) returns (MessageResponse);
+}

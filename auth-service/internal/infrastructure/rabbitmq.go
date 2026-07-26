@@ -3,13 +3,17 @@ package infrastructure
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"auth-service/internal/config"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
+
+const rabbitPublishConfirmTimeout = 5 * time.Second
 
 type OTPPublisher interface {
 	PublishRegisterOTP(ctx context.Context, email, fullName, otp string, expiresIn time.Duration) error
@@ -18,9 +22,12 @@ type OTPPublisher interface {
 }
 
 type RabbitMQPublisher struct {
+	mu          sync.Mutex
 	conn        *amqp.Connection
 	channel     *amqp.Channel
+	url         string
 	exchange    string
+	emailQueue  string
 	registerKey string
 	resetKey    string
 }
@@ -34,19 +41,35 @@ type OTPMessage struct {
 }
 
 func NewRabbitMQPublisher(cfg config.Config) (*RabbitMQPublisher, error) {
-	conn, err := amqp.Dial(cfg.RabbitMQ.URL)
+	publisher := &RabbitMQPublisher{
+		url:         cfg.RabbitMQ.URL,
+		exchange:    cfg.RabbitMQ.Exchange,
+		emailQueue:  cfg.RabbitMQ.EmailQueue,
+		registerKey: cfg.RabbitMQ.RegisterKey,
+		resetKey:    cfg.RabbitMQ.ResetKey,
+	}
+	if err := publisher.connectLocked(); err != nil {
+		return nil, err
+	}
+	return publisher, nil
+}
+
+func (p *RabbitMQPublisher) connectLocked() error {
+	_ = p.closeLocked() // A stale socket close error must not block a fresh connection.
+
+	conn, err := amqp.Dial(p.url)
 	if err != nil {
-		return nil, fmt.Errorf("dial rabbitmq: %w", err)
+		return fmt.Errorf("dial rabbitmq: %w", err)
 	}
 
 	channel, err := conn.Channel()
 	if err != nil {
 		_ = conn.Close()
-		return nil, fmt.Errorf("open rabbitmq channel: %w", err)
+		return fmt.Errorf("open rabbitmq channel: %w", err)
 	}
 
 	if err := channel.ExchangeDeclare(
-		cfg.RabbitMQ.Exchange,
+		p.exchange,
 		"topic",
 		true,
 		false,
@@ -56,11 +79,11 @@ func NewRabbitMQPublisher(cfg config.Config) (*RabbitMQPublisher, error) {
 	); err != nil {
 		_ = channel.Close()
 		_ = conn.Close()
-		return nil, fmt.Errorf("declare exchange: %w", err)
+		return fmt.Errorf("declare exchange: %w", err)
 	}
 
 	queue, err := channel.QueueDeclare(
-		cfg.RabbitMQ.EmailQueue,
+		p.emailQueue,
 		true,
 		false,
 		false,
@@ -70,24 +93,26 @@ func NewRabbitMQPublisher(cfg config.Config) (*RabbitMQPublisher, error) {
 	if err != nil {
 		_ = channel.Close()
 		_ = conn.Close()
-		return nil, fmt.Errorf("declare email queue: %w", err)
+		return fmt.Errorf("declare email queue: %w", err)
 	}
 
-	for _, key := range []string{cfg.RabbitMQ.RegisterKey, cfg.RabbitMQ.ResetKey} {
-		if err := channel.QueueBind(queue.Name, key, cfg.RabbitMQ.Exchange, false, nil); err != nil {
+	for _, key := range []string{p.registerKey, p.resetKey} {
+		if err := channel.QueueBind(queue.Name, key, p.exchange, false, nil); err != nil {
 			_ = channel.Close()
 			_ = conn.Close()
-			return nil, fmt.Errorf("bind email queue with routing key %s: %w", key, err)
+			return fmt.Errorf("bind email queue with routing key %s: %w", key, err)
 		}
 	}
 
-	return &RabbitMQPublisher{
-		conn:        conn,
-		channel:     channel,
-		exchange:    cfg.RabbitMQ.Exchange,
-		registerKey: cfg.RabbitMQ.RegisterKey,
-		resetKey:    cfg.RabbitMQ.ResetKey,
-	}, nil
+	if err := channel.Confirm(false); err != nil {
+		_ = channel.Close()
+		_ = conn.Close()
+		return fmt.Errorf("enable rabbitmq publisher confirms: %w", err)
+	}
+
+	p.conn = conn
+	p.channel = channel
+	return nil
 }
 
 func (p *RabbitMQPublisher) PublishRegisterOTP(ctx context.Context, email, fullName, otp string, expiresIn time.Duration) error {
@@ -115,7 +140,33 @@ func (p *RabbitMQPublisher) publish(ctx context.Context, routingKey string, mess
 		return fmt.Errorf("marshal otp message: %w", err)
 	}
 
-	if err := p.channel.PublishWithContext(
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	var publishErr error
+	for attempt := 0; attempt < 2; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if p.conn == nil || p.channel == nil || p.conn.IsClosed() || p.channel.IsClosed() {
+			if err := p.connectLocked(); err != nil {
+				publishErr = err
+				continue
+			}
+		}
+		if err := p.publishConfirmed(ctx, routingKey, body); err == nil {
+			return nil
+		} else {
+			publishErr = err
+			publishErr = errors.Join(publishErr, p.closeLocked())
+		}
+	}
+
+	return fmt.Errorf("publish otp message: %w", publishErr)
+}
+
+func (p *RabbitMQPublisher) publishConfirmed(ctx context.Context, routingKey string, body []byte) error {
+	confirmation, err := p.channel.PublishWithDeferredConfirmWithContext(
 		ctx,
 		p.exchange,
 		routingKey,
@@ -127,22 +178,40 @@ func (p *RabbitMQPublisher) publish(ctx context.Context, routingKey string, mess
 			Body:         body,
 			Timestamp:    time.Now(),
 		},
-	); err != nil {
-		return fmt.Errorf("publish otp message: %w", err)
+	)
+	if err != nil {
+		return err
 	}
-
+	if confirmation == nil {
+		return errors.New("rabbitmq publisher confirmation is unavailable")
+	}
+	confirmCtx, cancel := context.WithTimeout(ctx, rabbitPublishConfirmTimeout)
+	defer cancel()
+	acknowledged, err := confirmation.WaitContext(confirmCtx)
+	if err != nil {
+		return err
+	}
+	if !acknowledged {
+		return errors.New("rabbitmq rejected published message")
+	}
 	return nil
 }
 
 func (p *RabbitMQPublisher) Close() error {
-	if p.channel != nil {
-		if err := p.channel.Close(); err != nil {
-			_ = p.conn.Close()
-			return err
-		}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.closeLocked()
+}
+
+func (p *RabbitMQPublisher) closeLocked() error {
+	var closeErr error
+	if p.channel != nil && !p.channel.IsClosed() {
+		closeErr = p.channel.Close()
 	}
-	if p.conn != nil {
-		return p.conn.Close()
+	if p.conn != nil && !p.conn.IsClosed() {
+		closeErr = errors.Join(closeErr, p.conn.Close())
 	}
-	return nil
+	p.channel = nil
+	p.conn = nil
+	return closeErr
 }

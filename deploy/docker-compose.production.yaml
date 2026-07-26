@@ -1,0 +1,29 @@
+services:
+  api-gateway:
+    image: ghcr.io/${GHCR_NAMESPACE:?GHCR_NAMESPACE is required}/money-tracking-api-gateway:${IMAGE_TAG:?IMAGE_TAG is required}
+    build: null
+    environment:
+      ENVOY_UID: "101"
+      ENVOY_RENDER_MODE: "false"
+
+  auth-service:
+    image: ghcr.io/${GHCR_NAMESPACE:?GHCR_NAMESPACE is required}/money-tracking-auth-service:${IMAGE_TAG:?IMAGE_TAG is required}
+    build: null
+    environment:
+      JWT_PRIVATE_KEY_PATH: /run/secrets/jwt-private.pem
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt-public.pem
+      AUTH_COOKIE_SECURE: "true"
+      AUTH_COOKIE_SAME_SITE: None
+    secrets:
+      - source: jwt_private_key
+        target: jwt-private.pem
+      - source: jwt_public_key
+        target: jwt-public.pem
+
+  group-service:
+    image: ghcr.io/${GHCR_NAMESPACE:?GHCR_NAMESPACE is required}/money-tracking-group-service:${IMAGE_TAG:?IMAGE_TAG is required}
+    build: null
+
+  email-service:
+    image: ghcr.io/${GHCR_NAMESPACE:?GHCR_NAMESPACE is required}/money-tracking-email-service:${IMAGE_TAG:?IMAGE_TAG is required}
+    build: null

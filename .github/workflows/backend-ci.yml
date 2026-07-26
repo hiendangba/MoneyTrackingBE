@@ -1,0 +1,134 @@
+name: Backend CI
+
+on:
+  pull_request:
+    paths:
+      - "auth-service/**"
+      - "email-service/**"
+      - "group-service/**"
+      - "api-gateway/**"
+      - "compose*.yaml"
+      - ".github/workflows/backend-ci.yml"
+      - ".github/workflows/backend-cd.yml"
+      - "deploy/**"
+  push:
+    branches:
+      - main
+    paths:
+      - "auth-service/**"
+      - "email-service/**"
+      - "group-service/**"
+      - "api-gateway/**"
+      - "compose*.yaml"
+      - ".github/workflows/backend-ci.yml"
+      - ".github/workflows/backend-cd.yml"
+      - "deploy/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go-services:
+    name: "${{ matrix.service }} checks"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - auth-service
+          - email-service
+          - group-service
+    defaults:
+      run:
+        working-directory: ${{ matrix.service }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ matrix.service }}/go.mod
+          cache-dependency-path: ${{ matrix.service }}/go.sum
+
+      - name: Run unit tests
+        run: go test ./...
+
+      - name: Run race tests
+        run: go test -race ./...
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.5.0
+          working-directory: ${{ matrix.service }}
+
+      - name: Run gosec
+        run: go run github.com/securego/gosec/v2/cmd/gosec@v2.22.5 ./...
+
+      - name: Run govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
+
+  docker-build:
+    name: Docker build checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate CI certificates
+        run: |
+          mkdir -p api-gateway/certs auth-service/keys
+          openssl genrsa -out auth-service/keys/jwt-private.pem 2048
+          openssl rsa -in auth-service/keys/jwt-private.pem -pubout -out auth-service/keys/jwt-public.pem
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout api-gateway/certs/privkey.pem \
+            -out api-gateway/certs/fullchain.pem \
+            -days 1 \
+            -subj "/CN=localhost"
+
+      - name: Validate Docker Compose config
+        env:
+          CORS_ALLOWED_ORIGIN_REGEX: ^https://frontend\.example$
+          POSTGRES_USERNAME: ci
+          POSTGRES_PASSWORD: ci-postgres
+          GROUP_POSTGRES_USERNAME: ci-group
+          GROUP_POSTGRES_PASSWORD: ci-group-postgres
+          REDIS_PASSWORD: ci-redis
+          RABBITMQ_USERNAME: ci-rabbit
+          RABBITMQ_PASSWORD: ci-rabbit-password
+          AUTH_DATABASE_URL: postgres://ci:ci-postgres@postgres:5432/money_tracking_auth?sslmode=disable
+          GROUP_DATABASE_URL: postgres://ci-group:ci-group-postgres@group-postgres:5432/money_tracking_groups?sslmode=disable
+        run: docker compose -f compose.yaml config > /tmp/compose.rendered.yaml
+
+      - name: Build application images
+        run: |
+          docker build -t money-tracking-auth:ci auth-service
+          docker build -t money-tracking-email:ci email-service
+          docker build -t money-tracking-group:ci group-service
+          docker build -t money-tracking-envoy:ci api-gateway
+
+      - name: Validate local Envoy config
+        run: |
+          docker run --rm \
+            -v "$PWD/api-gateway/certs:/etc/envoy/certs:ro" \
+            -e 'CORS_ALLOWED_ORIGIN_REGEX=^https://frontend\.example$' \
+            money-tracking-envoy:ci --mode validate
+
+      - name: Validate Render Envoy config
+        run: |
+          docker run --rm \
+            -e ENVOY_RENDER_MODE=true \
+            -e PORT=10001 \
+            -e AUTH_SERVICE_HOST=auth-service \
+            -e AUTH_SERVICE_PORT=8080 \
+            -e 'CORS_ALLOWED_ORIGIN_REGEX=^https://frontend\.example$' \
+            money-tracking-envoy:ci --mode validate

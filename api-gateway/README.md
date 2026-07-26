@@ -1,51 +1,48 @@
 # API Gateway
 
-Envoy is the only public backend entrypoint. It verifies five-minute RS256 access tokens locally and routes requests to the private `auth-service`.
+`api-gateway` là entrypoint HTTP public cho backend. Gateway nhận request từ frontend, xác thực access token, rồi gọi nội bộ `auth-service` và `group-service` bằng gRPC.
 
-## Security model
+## Luồng chính
 
-- `Authorization: Bearer` takes precedence over the `access_token` cookie.
-- Lua removes client-supplied identity headers before JWT verification.
-- Envoy accepts JWTs only from the Authorization header, not `?access_token=`.
-- Public routes are allowlisted. The final `/` rule fails closed.
-- RBAC requires the verified claim `token_type=access` on protected routes.
-- Refresh tokens are never accepted as API credentials.
-- Envoy fetches public keys from `/.well-known/jwks.json`; private keys never leave `auth-service`.
+- Browser dùng cookie `access_token` + `refresh_token` và CSRF token.
+- Mobile dùng `Authorization: Bearer ...` và các endpoint `/api/auth/mobile/*`.
+- Gateway gọi `auth-service:50051` để verify token, login, refresh, logout, me, menu và JWKS.
+- Gateway gọi `group-service:50052` cho các route group.
 
-Browser flows first call `GET /api/auth/csrf`, retain the returned cookie, and send the same value in `X-CSRF-Token` on mutations. Mobile clients use `/api/auth/mobile/*` with JSON tokens and do not use CSRF cookies.
-
-## Local Compose
-
-Create `.env` from `.env.example`, provide JWT keys and local TLS files, then run:
+## Chạy local
 
 ```powershell
 docker compose up --build
 ```
 
-Public URLs are `http://localhost` (308 redirect) and `https://localhost`. Direct infrastructure ports are disabled. For localhost-only diagnostics:
+Public URL mặc định:
 
-```powershell
-docker compose -f compose.yaml -f compose.debug.yaml up --build
-```
+- `http://localhost:8080`
 
-Local Envoy admin binds to `127.0.0.1` inside its container and is not published. Inspect it with `docker compose exec api-gateway wget -qO- http://127.0.0.1:9901/server_info`.
+Gateway cần các biến môi trường chính:
 
-## TLS
+- `AUTH_SERVICE_ADDR=auth-service:50051`
+- `GROUP_SERVICE_ADDR=group-service:50052`
+- `CORS_ALLOWED_ORIGIN_REGEX`
 
-Local standalone Envoy expects:
+## Routes chính
 
-- `api-gateway/certs/fullchain.pem`
-- `api-gateway/certs/privkey.pem`
+- `GET /health`
+- `GET /.well-known/jwks.json`
+- `GET /api/auth/csrf`
+- `POST /api/auth/login`
+- `POST /api/auth/refresh-token`
+- `POST /api/auth/logout`
+- `POST /api/auth/mobile/login`
+- `POST /api/auth/mobile/refresh`
+- `POST /api/auth/mobile/logout`
+- `GET /api/auth/me`
+- `GET /api/menus/tree`
+- `GET /api/groups`
+- `POST /api/groups`
 
-The existing `manage-letsencrypt.ps1` helper can create a local self-signed pair or issue/renew Let's Encrypt certificates after a real domain points to the host.
+## Ghi chú
 
-Render terminates trusted HTTPS before Envoy. Set `ENVOY_RENDER_MODE=true`; the entrypoint renders `envoy.render.yaml.template` with `${PORT}`, private auth host/port, and the CORS origin. Do not mount TLS certificates or redirect Render's internal HTTP listener.
-
-## Render secrets
-
-The root `render.yaml` is a compatibility sample, not an instruction to provision paid services. In the private auth service's Render dashboard, add these secret files:
-
-- `/etc/secrets/jwt-private.pem`
-- `/etc/secrets/jwt-public.pem`
-
-During key rotation, keep old public keys in `JWT_PUBLIC_KEYS` until every token signed by them has expired, while `JWT_KEY_ID` points to the active private key.
+- Gateway không dùng Envoy trong luồng hiện tại.
+- `auth-service` và `group-service` chỉ cần gRPC nội bộ, không cần public host port.
+- `api-gateway` tự set/clear cookie cho browser flow.

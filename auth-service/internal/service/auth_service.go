@@ -286,19 +286,38 @@ func (s *AuthService) rotateSession(ctx context.Context, refreshToken string) (*
 }
 
 func (s *AuthService) revokeSessionFromTokens(ctx context.Context, accessToken, refreshToken string) error {
-	var claims *domain.TokenClaims
-	var err error
-	if strings.TrimSpace(accessToken) != "" {
-		claims, err = s.jwtService.ParseAccessToken(accessToken)
-	} else if strings.TrimSpace(refreshToken) != "" {
-		claims, err = s.jwtService.ParseRefreshToken(refreshToken)
-	} else {
+	accessToken = strings.TrimSpace(accessToken)
+	refreshToken = strings.TrimSpace(refreshToken)
+	if accessToken == "" && refreshToken == "" {
 		return nil
 	}
-	if err != nil {
+
+	var refreshClaims *domain.TokenClaims
+	if refreshToken != "" {
+		var err error
+		refreshClaims, err = s.jwtService.ParseRefreshToken(refreshToken)
+		if err != nil {
+			return apperrors.ErrInvalidToken
+		}
+	}
+
+	var accessClaims *domain.TokenClaims
+	if accessToken != "" {
+		var err error
+		accessClaims, err = s.jwtService.ParseAccessToken(accessToken)
+		if err != nil && refreshClaims == nil {
+			return apperrors.ErrInvalidToken
+		}
+	}
+
+	if accessClaims != nil && refreshClaims != nil &&
+		(accessClaims.SessionID != refreshClaims.SessionID || accessClaims.Subject != refreshClaims.Subject) {
 		return apperrors.ErrInvalidToken
 	}
-	return s.revokeSession(ctx, claims.SessionID)
+	if refreshClaims != nil {
+		return s.revokeSession(ctx, refreshClaims.SessionID)
+	}
+	return s.revokeSession(ctx, accessClaims.SessionID)
 }
 
 func (s *AuthService) ForgotPassword(ctx context.Context, req dto.ForgotPasswordRequest) error {
@@ -431,8 +450,31 @@ func (s *AuthService) Me(ctx context.Context, userID string) (*dto.MeResponse, e
 	}, nil
 }
 
+func (s *AuthService) ValidateAccessToken(ctx context.Context, accessToken string) (*domain.TokenClaims, *domain.User, error) {
+	claims, err := s.jwtService.ParseAccessToken(accessToken)
+	if err != nil {
+		return nil, nil, apperrors.ErrInvalidToken
+	}
+
+	user, err := s.userRepo.FindByID(ctx, claims.Subject)
+	if err != nil {
+		return nil, nil, fmt.Errorf("find access user: %w", err)
+	}
+	if err := validateActiveUser(user); err != nil {
+		return nil, nil, err
+	}
+	if user.SessionVersion != claims.SessionVersion {
+		return nil, nil, apperrors.ErrSessionRevoked
+	}
+	return claims, user, nil
+}
+
 func (s *AuthService) AccessCookieName() string {
 	return s.jwtCfg.AccessCookieName
+}
+
+func (s *AuthService) RefreshCookieName() string {
+	return s.jwtCfg.RefreshCookieName
 }
 
 func (s *AuthService) extractAccessToken(r *http.Request) string {

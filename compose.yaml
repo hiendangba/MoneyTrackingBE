@@ -3,22 +3,33 @@ name: money-tracking
 services:
   api-gateway:
     build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api-gateway/Dockerfile
     environment:
-      ENVOY_UID: "0"
-      ENVOY_LOG_LEVEL: ${ENVOY_LOG_LEVEL:-info}
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8080
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      AUTH_SERVICE_ADDR: auth-service:50051
+      GROUP_SERVICE_ADDR: group-service:50052
+      REQUEST_TIMEOUT: 10s
+      AUTH_ACCESS_TTL: 5m
+      AUTH_REFRESH_TTL: ${JWT_REFRESH_TTL:-168h}
+      AUTH_COOKIE_SECURE: "false"
+      AUTH_COOKIE_SAME_SITE: Lax
+      AUTH_COOKIE_DOMAIN: ""
+      AUTH_ADMIN_ROLE_CODE: admin
+      GATEWAY_CSRF_COOKIE_NAME: csrf_token
       CORS_ALLOWED_ORIGIN_REGEX: ${CORS_ALLOWED_ORIGIN_REGEX:?CORS_ALLOWED_ORIGIN_REGEX is required}
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./api-gateway/certs:/etc/envoy/certs:ro
+      - "8080:8080"
     depends_on:
       auth-service:
         condition: service_started
+      group-service:
+        condition: service_started
     networks:
       - edge
+      - data
     restart: unless-stopped
 
   auth-service:
@@ -43,6 +54,11 @@ services:
       RABBITMQ_URL: amqp://${RABBITMQ_USERNAME:?RABBITMQ_USERNAME is required}:${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}@rabbitmq:5672/
       RABBITMQ_EXCHANGE: auth.events
       RABBITMQ_EMAIL_QUEUE: auth.email.otp
+      RABBITMQ_EMAIL_RETRY_QUEUE: auth.email.otp.retry
+      RABBITMQ_EMAIL_DEAD_QUEUE: auth.email.otp.dead
+      RABBITMQ_EMAIL_RETRY_KEY: auth.otp.email.retry
+      RABBITMQ_EMAIL_MAX_RETRIES: 3
+      RABBITMQ_EMAIL_RETRY_DELAY: 30s
       RABBITMQ_REGISTER_KEY: auth.otp.register
       RABBITMQ_RESET_KEY: auth.otp.reset
       JWT_PRIVATE_KEY_PATH: /run/secrets/jwt-private.pem
@@ -81,6 +97,24 @@ services:
       - edge
       - data
       - message
+    restart: unless-stopped
+
+  group-service:
+    build:
+      context: ./group-service
+      dockerfile: Dockerfile
+    environment:
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 50052
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      GROUP_DATABASE_URL: ${GROUP_DATABASE_URL:?GROUP_DATABASE_URL is required}
+      POSTGRES_MAX_CONNS: ${GROUP_POSTGRES_MAX_CONNS:-10}
+      POSTGRES_MIN_CONNS: ${GROUP_POSTGRES_MIN_CONNS:-2}
+    depends_on:
+      group-migrate:
+        condition: service_completed_successfully
+    networks:
+      - data
     restart: unless-stopped
 
   email-service:
@@ -127,6 +161,23 @@ services:
       - data
     restart: "no"
 
+  group-migrate:
+    image: migrate/migrate:v4.18.3
+    command:
+      - -path
+      - /migrations
+      - -database
+      - ${GROUP_DATABASE_URL:?GROUP_DATABASE_URL is required}
+      - up
+    volumes:
+      - ./group-service/migrations:/migrations:ro
+    depends_on:
+      group-postgres:
+        condition: service_healthy
+    networks:
+      - data
+    restart: "no"
+
   postgres:
     image: postgres:17.6-alpine
     environment:
@@ -135,6 +186,24 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - data
+    restart: unless-stopped
+
+  group-postgres:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: ${GROUP_POSTGRES_DB:-money_tracking_groups}
+      POSTGRES_USER: ${GROUP_POSTGRES_USERNAME:?GROUP_POSTGRES_USERNAME is required}
+      POSTGRES_PASSWORD: ${GROUP_POSTGRES_PASSWORD:?GROUP_POSTGRES_PASSWORD is required}
+    volumes:
+      - group-postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 10s
@@ -195,6 +264,7 @@ networks:
 
 volumes:
   postgres-data:
+  group-postgres-data:
   redis-data:
   rabbitmq-data:
 
