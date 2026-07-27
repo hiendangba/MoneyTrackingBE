@@ -8,9 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"email-service/internal/config"
-	"email-service/internal/mailer"
-	"email-service/internal/worker"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/email-service/internal/config"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/email-service/internal/mailer"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/email-service/internal/worker"
 
 	"github.com/joho/godotenv"
 )

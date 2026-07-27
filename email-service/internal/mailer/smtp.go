@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"email-service/internal/config"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/email-service/internal/config"
 )
 
 type Mailer struct {

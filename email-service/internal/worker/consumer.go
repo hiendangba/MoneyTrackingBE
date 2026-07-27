@@ -8,8 +8,8 @@ import (
 	"log/slog"
 	"time"
 
-	"email-service/internal/config"
-	"email-service/internal/mailer"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/email-service/internal/config"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/email-service/internal/mailer"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )

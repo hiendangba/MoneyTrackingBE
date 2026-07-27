@@ -1666,7 +1666,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\n" +
 	"UpdateMenu\x12\x1a.auth.v1.UpdateMenuRequest\x1a\r.auth.v1.Menu\x12B\n" +
 	"\n" +
-	"DeleteMenu\x12\x1a.auth.v1.DeleteMenuRequest\x1a\x18.auth.v1.MessageResponseB!Z\x1fauth-service/gen/auth/v1;authv1b\x06proto3"
+	"DeleteMenu\x12\x1a.auth.v1.DeleteMenuRequest\x1a\x18.auth.v1.MessageResponseBOZMgithub.com/hiendangba/MoneyTrackingBE/Backend/auth-service/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_auth_proto_rawDescOnce sync.Once

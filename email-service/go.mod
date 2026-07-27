@@ -1,4 +1,4 @@
-module email-service
+module github.com/hiendangba/MoneyTrackingBE/Backend/email-service
 
 go 1.26.5
 

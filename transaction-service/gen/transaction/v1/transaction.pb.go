@@ -2599,7 +2599,7 @@ const file_transaction_v1_transaction_proto_rawDesc = "" +
 	"\x16DeleteGroupTransaction\x12-.transaction.v1.DeleteGroupTransactionRequest\x1a\x1e.transaction.v1.DeleteResponse\x12W\n" +
 	"\x10CreateSettlement\x12'.transaction.v1.CreateSettlementRequest\x1a\x1a.transaction.v1.Settlement\x12b\n" +
 	"\x0fListSettlements\x12&.transaction.v1.ListSettlementsRequest\x1a'.transaction.v1.ListSettlementsResponse\x12e\n" +
-	"\x10GetGroupBalances\x12'.transaction.v1.GetGroupBalancesRequest\x1a(.transaction.v1.GetGroupBalancesResponseB6Z4transaction-service/gen/transaction/v1;transactionv1b\x06proto3"
+	"\x10GetGroupBalances\x12'.transaction.v1.GetGroupBalancesRequest\x1a(.transaction.v1.GetGroupBalancesResponseBdZbgithub.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/gen/transaction/v1;transactionv1b\x06proto3"
 
 var (
 	file_transaction_v1_transaction_proto_rawDescOnce sync.Once
