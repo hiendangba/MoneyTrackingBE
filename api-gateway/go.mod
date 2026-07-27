@@ -7,6 +7,7 @@ require (
 	google.golang.org/grpc v1.82.1
 	google.golang.org/protobuf v1.36.11
 	group-service v0.0.0
+	transaction-service v0.0.0
 )
 
 require (
@@ -19,3 +20,5 @@ require (
 replace auth-service => ../auth-service
 
 replace group-service => ../group-service
+
+replace transaction-service => ../transaction-service

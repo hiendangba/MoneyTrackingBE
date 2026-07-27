@@ -17,7 +17,12 @@ func run() error {
 	}
 
 	ctx := context.Background()
-	clients, err := clients.New(ctx, cfg.AuthServiceAddress, cfg.GroupServiceAddress)
+	clients, err := clients.New(
+		ctx,
+		cfg.AuthServiceAddress,
+		cfg.GroupServiceAddress,
+		cfg.TransactionServiceAddress,
+	)
 	if err != nil {
 		return fmt.Errorf("create clients: %w", err)
 	}

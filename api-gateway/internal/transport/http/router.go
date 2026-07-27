@@ -52,6 +52,23 @@ func (g *Gateway) Router() http.Handler {
 	mux.Handle("POST /api/groups/{id}/invitations", g.requireCSRF(protected(g.InviteMember)))
 	mux.Handle("POST /api/invitations/{id}/respond", g.requireCSRF(protected(g.RespondInvitation)))
 
+	mux.Handle("GET /api/categories", protected(g.ListCategories))
+	mux.Handle("POST /api/categories", g.requireCSRF(admin(g.CreateCategory)))
+
+	mux.Handle("GET /api/transactions/personal", protected(g.ListPersonalTransactions))
+	mux.Handle("POST /api/transactions/personal", g.requireCSRF(protected(g.CreatePersonalTransaction)))
+	mux.Handle("GET /api/transactions/personal/{id}", protected(g.GetPersonalTransaction))
+	mux.Handle("DELETE /api/transactions/personal/{id}", g.requireCSRF(protected(g.DeletePersonalTransaction)))
+
+	mux.Handle("GET /api/groups/{id}/transactions", protected(g.ListGroupTransactions))
+	mux.Handle("POST /api/groups/{id}/transactions", g.requireCSRF(protected(g.CreateGroupTransaction)))
+	mux.Handle("GET /api/groups/{id}/transactions/{transaction_id}", protected(g.GetGroupTransaction))
+	mux.Handle("DELETE /api/groups/{id}/transactions/{transaction_id}", g.requireCSRF(protected(g.DeleteGroupTransaction)))
+
+	mux.Handle("GET /api/groups/{id}/settlements", protected(g.ListSettlements))
+	mux.Handle("POST /api/groups/{id}/settlements", g.requireCSRF(protected(g.CreateSettlement)))
+	mux.Handle("GET /api/groups/{id}/balances", protected(g.GetGroupBalances))
+
 	handler := requestIDMiddleware(securityHeaders(corsMiddleware(g.cfg.AllowedOriginRegex, mux)))
 	return recoverMiddleware(g.logger, handler)
 }

@@ -2,9 +2,6 @@ services:
   api-gateway:
     image: ghcr.io/${GHCR_NAMESPACE:?GHCR_NAMESPACE is required}/money-tracking-api-gateway:${IMAGE_TAG:?IMAGE_TAG is required}
     build: null
-    environment:
-      ENVOY_UID: "101"
-      ENVOY_RENDER_MODE: "false"
 
   auth-service:
     image: ghcr.io/${GHCR_NAMESPACE:?GHCR_NAMESPACE is required}/money-tracking-auth-service:${IMAGE_TAG:?IMAGE_TAG is required}
@@ -22,6 +19,10 @@ services:
 
   group-service:
     image: ghcr.io/${GHCR_NAMESPACE:?GHCR_NAMESPACE is required}/money-tracking-group-service:${IMAGE_TAG:?IMAGE_TAG is required}
+    build: null
+
+  transaction-service:
+    image: ghcr.io/${GHCR_NAMESPACE:?GHCR_NAMESPACE is required}/money-tracking-transaction-service:${IMAGE_TAG:?IMAGE_TAG is required}
     build: null
 
   email-service:

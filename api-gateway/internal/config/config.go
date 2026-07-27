@@ -12,17 +12,18 @@ import (
 )
 
 type Config struct {
-	Server              ServerConfig
-	AuthServiceAddress  string
-	GroupServiceAddress string
-	RequestTimeout      time.Duration
-	AccessTTL           time.Duration
-	RefreshTTL          time.Duration
-	AllowedOriginRegex  string
-	CSRF                CSRFConfig
-	Cookie              CookieConfig
-	Auth                AuthConfig
-	LogLevel            slog.Level
+	Server                    ServerConfig
+	AuthServiceAddress        string
+	GroupServiceAddress       string
+	TransactionServiceAddress string
+	RequestTimeout            time.Duration
+	AccessTTL                 time.Duration
+	RefreshTTL                time.Duration
+	AllowedOriginRegex        string
+	CSRF                      CSRFConfig
+	Cookie                    CookieConfig
+	Auth                      AuthConfig
+	LogLevel                  slog.Level
 }
 
 type ServerConfig struct {
@@ -78,12 +79,13 @@ func Load() (Config, error) {
 			Host: readString("SERVER_HOST", "0.0.0.0"),
 			Port: port,
 		},
-		AuthServiceAddress:  readString("AUTH_SERVICE_ADDR", "auth-service:50051"),
-		GroupServiceAddress: readString("GROUP_SERVICE_ADDR", "group-service:50052"),
-		RequestTimeout:      requestTimeout,
-		AccessTTL:           getDuration("AUTH_ACCESS_TTL", 5*time.Minute),
-		RefreshTTL:          getDuration("AUTH_REFRESH_TTL", 7*24*time.Hour),
-		AllowedOriginRegex:  corsRegex,
+		AuthServiceAddress:        readString("AUTH_SERVICE_ADDR", "auth-service:50051"),
+		GroupServiceAddress:       readString("GROUP_SERVICE_ADDR", "group-service:50052"),
+		TransactionServiceAddress: readString("TRANSACTION_SERVICE_ADDR", "transaction-service:50053"),
+		RequestTimeout:            requestTimeout,
+		AccessTTL:                 getDuration("AUTH_ACCESS_TTL", 5*time.Minute),
+		RefreshTTL:                getDuration("AUTH_REFRESH_TTL", 7*24*time.Hour),
+		AllowedOriginRegex:        corsRegex,
 		CSRF: CSRFConfig{
 			CookieName: readString("GATEWAY_CSRF_COOKIE_NAME", "csrf_token"),
 		},
@@ -106,6 +108,9 @@ func Load() (Config, error) {
 	}
 	if cfg.GroupServiceAddress == "" {
 		return Config{}, errors.New("GROUP_SERVICE_ADDR is required")
+	}
+	if cfg.TransactionServiceAddress == "" {
+		return Config{}, errors.New("TRANSACTION_SERVICE_ADDR is required")
 	}
 	if cfg.RequestTimeout <= 0 {
 		return Config{}, errors.New("REQUEST_TIMEOUT must be positive")

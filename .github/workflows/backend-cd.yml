@@ -8,6 +8,7 @@ on:
       - "auth-service/**"
       - "email-service/**"
       - "group-service/**"
+      - "transaction-service/**"
       - "api-gateway/**"
       - "compose*.yaml"
       - ".github/workflows/backend-ci.yml"
@@ -41,8 +42,11 @@ jobs:
             context: ./email-service
           - name: group-service
             context: ./group-service
+          - name: transaction-service
+            context: ./transaction-service
           - name: api-gateway
-            context: ./api-gateway
+            context: .
+            dockerfile: ./api-gateway/Dockerfile
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -70,6 +74,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile || format('{0}/Dockerfile', matrix.image.context) }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -109,12 +114,16 @@ jobs:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           AUTH_DATABASE_URL: ${{ secrets.AUTH_DATABASE_URL }}
           GROUP_DATABASE_URL: ${{ secrets.GROUP_DATABASE_URL }}
+          TRANSACTION_DATABASE_URL: ${{ secrets.TRANSACTION_DATABASE_URL }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
           POSTGRES_USERNAME: ${{ secrets.POSTGRES_USERNAME }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           GROUP_POSTGRES_DB: ${{ secrets.GROUP_POSTGRES_DB }}
           GROUP_POSTGRES_USERNAME: ${{ secrets.GROUP_POSTGRES_USERNAME }}
           GROUP_POSTGRES_PASSWORD: ${{ secrets.GROUP_POSTGRES_PASSWORD }}
+          TRANSACTION_POSTGRES_DB: ${{ secrets.TRANSACTION_POSTGRES_DB }}
+          TRANSACTION_POSTGRES_USERNAME: ${{ secrets.TRANSACTION_POSTGRES_USERNAME }}
+          TRANSACTION_POSTGRES_PASSWORD: ${{ secrets.TRANSACTION_POSTGRES_PASSWORD }}
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
           RABBITMQ_USERNAME: ${{ secrets.RABBITMQ_USERNAME }}
           RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
@@ -127,18 +136,17 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
-          ENVOY_LOG_LEVEL: ${{ secrets.ENVOY_LOG_LEVEL }}
           CORS_ALLOWED_ORIGIN_REGEX: ${{ secrets.CORS_ALLOWED_ORIGIN_REGEX }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT || '22' }}
-          envs: GITHUB_REPOSITORY_OWNER,GITHUB_SHA,GHCR_USERNAME,GHCR_PASSWORD,DEPLOY_PATH,AUTH_DATABASE_URL,GROUP_DATABASE_URL,POSTGRES_DB,POSTGRES_USERNAME,POSTGRES_PASSWORD,GROUP_POSTGRES_DB,GROUP_POSTGRES_USERNAME,GROUP_POSTGRES_PASSWORD,REDIS_PASSWORD,RABBITMQ_USERNAME,RABBITMQ_PASSWORD,JWT_KEY_ID,JWT_PUBLIC_KEYS,JWT_REFRESH_TTL,SMTP_HOST,SMTP_PORT,SMTP_USERNAME,SMTP_PASSWORD,EMAIL_FROM,LOG_LEVEL,ENVOY_LOG_LEVEL,CORS_ALLOWED_ORIGIN_REGEX
+          envs: GITHUB_REPOSITORY_OWNER,GITHUB_SHA,GHCR_USERNAME,GHCR_PASSWORD,DEPLOY_PATH,AUTH_DATABASE_URL,GROUP_DATABASE_URL,TRANSACTION_DATABASE_URL,POSTGRES_DB,POSTGRES_USERNAME,POSTGRES_PASSWORD,GROUP_POSTGRES_DB,GROUP_POSTGRES_USERNAME,GROUP_POSTGRES_PASSWORD,TRANSACTION_POSTGRES_DB,TRANSACTION_POSTGRES_USERNAME,TRANSACTION_POSTGRES_PASSWORD,REDIS_PASSWORD,RABBITMQ_USERNAME,RABBITMQ_PASSWORD,JWT_KEY_ID,JWT_PUBLIC_KEYS,JWT_REFRESH_TTL,SMTP_HOST,SMTP_PORT,SMTP_USERNAME,SMTP_PASSWORD,EMAIL_FROM,LOG_LEVEL,CORS_ALLOWED_ORIGIN_REGEX
           script: |
             set -eu
             cd "$DEPLOY_PATH"
-            mkdir -p auth-service/keys api-gateway/certs
+            mkdir -p auth-service/keys
             echo "$GHCR_PASSWORD" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
             export IMAGE_TAG="$GITHUB_SHA"
             export GHCR_NAMESPACE="$GITHUB_REPOSITORY_OWNER"
