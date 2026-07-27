@@ -9,17 +9,20 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	groupv1 "group-service/gen/group/v1"
+	transactionv1 "transaction-service/gen/transaction/v1"
 )
 
 type Clients struct {
-	authConn  *grpc.ClientConn
-	groupConn *grpc.ClientConn
+	authConn        *grpc.ClientConn
+	groupConn       *grpc.ClientConn
+	transactionConn *grpc.ClientConn
 
-	Auth  authv1.AuthServiceClient
-	Group groupv1.GroupServiceClient
+	Auth        authv1.AuthServiceClient
+	Group       groupv1.GroupServiceClient
+	Transaction transactionv1.TransactionServiceClient
 }
 
-func New(ctx context.Context, authAddr, groupAddr string) (*Clients, error) {
+func New(ctx context.Context, authAddr, groupAddr, transactionAddr string) (*Clients, error) {
 	authConn, err := dial(ctx, authAddr)
 	if err != nil {
 		return nil, fmt.Errorf("dial auth-service: %w", err)
@@ -29,12 +32,20 @@ func New(ctx context.Context, authAddr, groupAddr string) (*Clients, error) {
 		_ = authConn.Close()
 		return nil, fmt.Errorf("dial group-service: %w", err)
 	}
+	transactionConn, err := dial(ctx, transactionAddr)
+	if err != nil {
+		_ = authConn.Close()
+		_ = groupConn.Close()
+		return nil, fmt.Errorf("dial transaction-service: %w", err)
+	}
 
 	return &Clients{
-		authConn:  authConn,
-		groupConn: groupConn,
-		Auth:      authv1.NewAuthServiceClient(authConn),
-		Group:     groupv1.NewGroupServiceClient(groupConn),
+		authConn:        authConn,
+		groupConn:       groupConn,
+		transactionConn: transactionConn,
+		Auth:            authv1.NewAuthServiceClient(authConn),
+		Group:           groupv1.NewGroupServiceClient(groupConn),
+		Transaction:     transactionv1.NewTransactionServiceClient(transactionConn),
 	}, nil
 }
 
@@ -47,6 +58,11 @@ func (c *Clients) Close() error {
 	}
 	if c.groupConn != nil {
 		if err := c.groupConn.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	if c.transactionConn != nil {
+		if err := c.transactionConn.Close(); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}

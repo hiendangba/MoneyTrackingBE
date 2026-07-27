@@ -6,6 +6,7 @@ RUN apk add --no-cache ca-certificates git
 
 COPY auth-service ./auth-service
 COPY group-service ./group-service
+COPY transaction-service ./transaction-service
 COPY api-gateway ./api-gateway
 
 WORKDIR /src/api-gateway

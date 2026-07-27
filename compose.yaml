@@ -11,6 +11,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       AUTH_SERVICE_ADDR: auth-service:50051
       GROUP_SERVICE_ADDR: group-service:50052
+      TRANSACTION_SERVICE_ADDR: transaction-service:50053
       REQUEST_TIMEOUT: 10s
       AUTH_ACCESS_TTL: 5m
       AUTH_REFRESH_TTL: ${JWT_REFRESH_TTL:-168h}
@@ -26,6 +27,8 @@ services:
       auth-service:
         condition: service_started
       group-service:
+        condition: service_started
+      transaction-service:
         condition: service_started
     networks:
       - edge
@@ -117,6 +120,32 @@ services:
       - data
     restart: unless-stopped
 
+  transaction-service:
+    build:
+      context: ./transaction-service
+      dockerfile: Dockerfile
+    environment:
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 50053
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      TRANSACTION_DATABASE_URL: ${TRANSACTION_DATABASE_URL:?TRANSACTION_DATABASE_URL is required}
+      POSTGRES_MAX_CONNS: ${TRANSACTION_POSTGRES_MAX_CONNS:-10}
+      POSTGRES_MIN_CONNS: ${TRANSACTION_POSTGRES_MIN_CONNS:-2}
+      AUTH_SERVICE_ADDR: auth-service:50051
+      GROUP_SERVICE_ADDR: group-service:50052
+      UPSTREAM_TIMEOUT: ${TRANSACTION_UPSTREAM_TIMEOUT:-5s}
+      DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-VND}
+    depends_on:
+      transaction-migrate:
+        condition: service_completed_successfully
+      auth-service:
+        condition: service_started
+      group-service:
+        condition: service_started
+    networks:
+      - data
+    restart: unless-stopped
+
   email-service:
     build:
       context: ./email-service
@@ -178,6 +207,23 @@ services:
       - data
     restart: "no"
 
+  transaction-migrate:
+    image: migrate/migrate:v4.18.3
+    command:
+      - -path
+      - /migrations
+      - -database
+      - ${TRANSACTION_DATABASE_URL:?TRANSACTION_DATABASE_URL is required}
+      - up
+    volumes:
+      - ./transaction-service/migrations:/migrations:ro
+    depends_on:
+      transaction-postgres:
+        condition: service_healthy
+    networks:
+      - data
+    restart: "no"
+
   postgres:
     image: postgres:17.6-alpine
     environment:
@@ -204,6 +250,24 @@ services:
       POSTGRES_PASSWORD: ${GROUP_POSTGRES_PASSWORD:?GROUP_POSTGRES_PASSWORD is required}
     volumes:
       - group-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - data
+    restart: unless-stopped
+
+  transaction-postgres:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: ${TRANSACTION_POSTGRES_DB:-money_tracking_transactions}
+      POSTGRES_USER: ${TRANSACTION_POSTGRES_USERNAME:?TRANSACTION_POSTGRES_USERNAME is required}
+      POSTGRES_PASSWORD: ${TRANSACTION_POSTGRES_PASSWORD:?TRANSACTION_POSTGRES_PASSWORD is required}
+    volumes:
+      - transaction-postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 10s
@@ -265,6 +329,7 @@ networks:
 volumes:
   postgres-data:
   group-postgres-data:
+  transaction-postgres-data:
   redis-data:
   rabbitmq-data:
 

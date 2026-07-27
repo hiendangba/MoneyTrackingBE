@@ -21,6 +21,10 @@ services:
     image: ghcr.io/${GHCR_NAMESPACE:?GHCR_NAMESPACE is required}/money-tracking-group-service:${IMAGE_TAG:?IMAGE_TAG is required}
     build: null
 
+  transaction-service:
+    image: ghcr.io/${GHCR_NAMESPACE:?GHCR_NAMESPACE is required}/money-tracking-transaction-service:${IMAGE_TAG:?IMAGE_TAG is required}
+    build: null
+
   email-service:
     image: ghcr.io/${GHCR_NAMESPACE:?GHCR_NAMESPACE is required}/money-tracking-email-service:${IMAGE_TAG:?IMAGE_TAG is required}
     build: null

@@ -20,15 +20,17 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	groupv1 "group-service/gen/group/v1"
+	transactionv1 "transaction-service/gen/transaction/v1"
 )
 
 type Gateway struct {
-	cfg           config.Config
-	clients       *clients.Clients
-	authClient    authv1.AuthServiceClient
-	groupClient   groupv1.GroupServiceClient
-	logger        *slog.Logger
-	originPattern *regexp.Regexp
+	cfg               config.Config
+	clients           *clients.Clients
+	authClient        authv1.AuthServiceClient
+	groupClient       groupv1.GroupServiceClient
+	transactionClient transactionv1.TransactionServiceClient
+	logger            *slog.Logger
+	originPattern     *regexp.Regexp
 }
 
 func NewGateway(cfg config.Config, c *clients.Clients, logger *slog.Logger) (*Gateway, error) {
@@ -37,12 +39,13 @@ func NewGateway(cfg config.Config, c *clients.Clients, logger *slog.Logger) (*Ga
 		return nil, fmt.Errorf("compile origin regex: %w", err)
 	}
 	return &Gateway{
-		cfg:           cfg,
-		clients:       c,
-		authClient:    c.Auth,
-		groupClient:   c.Group,
-		logger:        logger,
-		originPattern: pattern,
+		cfg:               cfg,
+		clients:           c,
+		authClient:        c.Auth,
+		groupClient:       c.Group,
+		transactionClient: c.Transaction,
+		logger:            logger,
+		originPattern:     pattern,
 	}, nil
 }
 

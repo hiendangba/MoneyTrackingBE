@@ -1,0 +1,273 @@
+syntax = "proto3";
+
+package transaction.v1;
+
+option go_package = "transaction-service/gen/transaction/v1;transactionv1";
+
+import "google/protobuf/timestamp.proto";
+
+enum TransactionType {
+  TRANSACTION_TYPE_UNSPECIFIED = 0;
+  TRANSACTION_TYPE_INCOME = 1;
+  TRANSACTION_TYPE_EXPENSE = 2;
+}
+
+enum SplitType {
+  SPLIT_TYPE_UNSPECIFIED = 0;
+  SPLIT_TYPE_RATIO = 1;
+  SPLIT_TYPE_FIXED = 2;
+}
+
+message Category {
+  string id = 1;
+  string code = 2;
+  string name = 3;
+  string description = 4;
+  bool is_active = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message UserSnapshot {
+  string user_id = 1;
+  string fullname = 2;
+  string email = 3;
+}
+
+message PersonalTransaction {
+  string id = 1;
+  UserSnapshot user = 2;
+  Category category = 3;
+  TransactionType type = 4;
+  string title = 5;
+  string amount = 6;
+  string currency = 7;
+  google.protobuf.Timestamp transaction_date = 8;
+  string note = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+message GroupPayment {
+  string id = 1;
+  UserSnapshot user = 2;
+  string amount = 3;
+  string note = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+message GroupSplit {
+  string id = 1;
+  UserSnapshot user = 2;
+  SplitType split_type = 3;
+  string split_value = 4;
+  string share_amount = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message GroupTransaction {
+  string id = 1;
+  string group_id = 2;
+  string group_name = 3;
+  Category category = 4;
+  TransactionType type = 5;
+  string title = 6;
+  string amount = 7;
+  string currency = 8;
+  google.protobuf.Timestamp transaction_date = 9;
+  string note = 10;
+  UserSnapshot created_by = 11;
+  repeated GroupPayment payments = 12;
+  repeated GroupSplit splits = 13;
+  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp updated_at = 15;
+}
+
+message Settlement {
+  string id = 1;
+  string group_id = 2;
+  string group_name = 3;
+  UserSnapshot from_user = 4;
+  UserSnapshot to_user = 5;
+  string amount = 6;
+  string currency = 7;
+  google.protobuf.Timestamp settled_at = 8;
+  string note = 9;
+  UserSnapshot created_by = 10;
+  google.protobuf.Timestamp created_at = 11;
+}
+
+message MemberBalance {
+  UserSnapshot user = 1;
+  string paid = 2;
+  string share = 3;
+  string settlements_sent = 4;
+  string settlements_received = 5;
+  string net_balance = 6;
+}
+
+message SettlementSuggestion {
+  UserSnapshot from_user = 1;
+  UserSnapshot to_user = 2;
+  string amount = 3;
+  string currency = 4;
+}
+
+message CreateCategoryRequest {
+  string code = 1;
+  string name = 2;
+  string description = 3;
+}
+
+message ListCategoriesRequest {
+  bool include_inactive = 1;
+}
+
+message ListCategoriesResponse {
+  repeated Category categories = 1;
+}
+
+message CreatePersonalTransactionRequest {
+  string user_id = 1;
+  string category_id = 2;
+  TransactionType type = 3;
+  string title = 4;
+  string amount = 5;
+  string currency = 6;
+  google.protobuf.Timestamp transaction_date = 7;
+  string note = 8;
+}
+
+message GetPersonalTransactionRequest {
+  string id = 1;
+  string user_id = 2;
+}
+
+message ListPersonalTransactionsRequest {
+  string user_id = 1;
+  google.protobuf.Timestamp from = 2;
+  google.protobuf.Timestamp to = 3;
+  TransactionType type = 4;
+  string category_id = 5;
+  int32 limit = 6;
+  int32 offset = 7;
+}
+
+message ListPersonalTransactionsResponse {
+  repeated PersonalTransaction transactions = 1;
+  int64 total = 2;
+}
+
+message DeletePersonalTransactionRequest {
+  string id = 1;
+  string user_id = 2;
+}
+
+message PaymentInput {
+  string user_id = 1;
+  string amount = 2;
+  string note = 3;
+}
+
+message SplitInput {
+  string user_id = 1;
+  SplitType split_type = 2;
+  string split_value = 3;
+}
+
+message CreateGroupTransactionRequest {
+  string group_id = 1;
+  string category_id = 2;
+  TransactionType type = 3;
+  string title = 4;
+  string amount = 5;
+  string currency = 6;
+  google.protobuf.Timestamp transaction_date = 7;
+  string note = 8;
+  string created_by = 9;
+  repeated PaymentInput payments = 10;
+  repeated SplitInput splits = 11;
+}
+
+message GetGroupTransactionRequest {
+  string id = 1;
+  string user_id = 2;
+}
+
+message ListGroupTransactionsRequest {
+  string group_id = 1;
+  string user_id = 2;
+  google.protobuf.Timestamp from = 3;
+  google.protobuf.Timestamp to = 4;
+  TransactionType type = 5;
+  string category_id = 6;
+  int32 limit = 7;
+  int32 offset = 8;
+}
+
+message ListGroupTransactionsResponse {
+  repeated GroupTransaction transactions = 1;
+  int64 total = 2;
+}
+
+message DeleteGroupTransactionRequest {
+  string id = 1;
+  string user_id = 2;
+}
+
+message CreateSettlementRequest {
+  string group_id = 1;
+  string from_user_id = 2;
+  string to_user_id = 3;
+  string amount = 4;
+  string currency = 5;
+  google.protobuf.Timestamp settled_at = 6;
+  string note = 7;
+  string created_by = 8;
+}
+
+message ListSettlementsRequest {
+  string group_id = 1;
+  string user_id = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+}
+
+message ListSettlementsResponse {
+  repeated Settlement settlements = 1;
+  int64 total = 2;
+}
+
+message GetGroupBalancesRequest {
+  string group_id = 1;
+  string user_id = 2;
+  string currency = 3;
+}
+
+message GetGroupBalancesResponse {
+  repeated MemberBalance balances = 1;
+  repeated SettlementSuggestion suggestions = 2;
+}
+
+message DeleteResponse {
+  string message = 1;
+}
+
+service TransactionService {
+  rpc CreateCategory(CreateCategoryRequest) returns (Category);
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
+
+  rpc CreatePersonalTransaction(CreatePersonalTransactionRequest) returns (PersonalTransaction);
+  rpc GetPersonalTransaction(GetPersonalTransactionRequest) returns (PersonalTransaction);
+  rpc ListPersonalTransactions(ListPersonalTransactionsRequest) returns (ListPersonalTransactionsResponse);
+  rpc DeletePersonalTransaction(DeletePersonalTransactionRequest) returns (DeleteResponse);
+
+  rpc CreateGroupTransaction(CreateGroupTransactionRequest) returns (GroupTransaction);
+  rpc GetGroupTransaction(GetGroupTransactionRequest) returns (GroupTransaction);
+  rpc ListGroupTransactions(ListGroupTransactionsRequest) returns (ListGroupTransactionsResponse);
+  rpc DeleteGroupTransaction(DeleteGroupTransactionRequest) returns (DeleteResponse);
+
+  rpc CreateSettlement(CreateSettlementRequest) returns (Settlement);
+  rpc ListSettlements(ListSettlementsRequest) returns (ListSettlementsResponse);
+  rpc GetGroupBalances(GetGroupBalancesRequest) returns (GetGroupBalancesResponse);
+}
