@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	apperrors "auth-service/internal/errors"
-	"auth-service/internal/service"
+	apperrors "github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/errors"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/service"
 )
 
 type contextKey string

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"auth-service/internal/config"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/config"
 
 	"github.com/redis/go-redis/v9"
 )

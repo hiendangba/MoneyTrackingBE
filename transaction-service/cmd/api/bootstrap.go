@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"os"
 
-	"transaction-service/internal/config"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/config"
 )
 
 func bootstrap() (config.Config, *slog.Logger, error) {

@@ -1,4 +1,4 @@
-module group-service
+module github.com/hiendangba/MoneyTrackingBE/Backend/group-service
 
 go 1.26.5
 

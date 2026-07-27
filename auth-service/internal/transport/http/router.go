@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"auth-service/internal/config"
-	"auth-service/internal/service"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/config"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/service"
 
 	"github.com/redis/go-redis/v9"
 )

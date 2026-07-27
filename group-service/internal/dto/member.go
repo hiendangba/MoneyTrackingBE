@@ -15,4 +15,3 @@ type InviteMemberRequest struct {
 	Role          string
 	ExpiredAt     *time.Time
 }
-

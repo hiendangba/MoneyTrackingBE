@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	transactionv1 "transaction-service/gen/transaction/v1"
+	transactionv1 "github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/gen/transaction/v1"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

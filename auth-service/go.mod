@@ -1,4 +1,4 @@
-module auth-service
+module github.com/hiendangba/MoneyTrackingBE/Backend/auth-service
 
 go 1.26.5
 

@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"api-gateway/internal/clients"
-	httptransport "api-gateway/internal/transport/http"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/api-gateway/internal/clients"
+	httptransport "github.com/hiendangba/MoneyTrackingBE/Backend/api-gateway/internal/transport/http"
 )
 
 func run() error {

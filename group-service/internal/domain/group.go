@@ -34,7 +34,7 @@ const (
 	InvitationStatusPending  InvitationStatus = "pending"
 	InvitationStatusAccepted InvitationStatus = "accepted"
 	InvitationStatusRejected InvitationStatus = "rejected"
-	InvitationStatusExpired   InvitationStatus = "expired"
+	InvitationStatusExpired  InvitationStatus = "expired"
 )
 
 type GroupInvitation struct {
@@ -51,4 +51,3 @@ type GroupInvitation struct {
 	UpdatedAt     time.Time
 	DeletedAt     *time.Time
 }
-

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"auth-service/internal/config"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/config"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"

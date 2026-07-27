@@ -3,7 +3,7 @@ package service
 import (
 	"time"
 
-	"transaction-service/internal/domain"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/domain"
 )
 
 type CreateCategoryInput struct {

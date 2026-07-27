@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"group-service/internal/config"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/group-service/internal/config"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -31,4 +31,3 @@ func NewPostgres(ctx context.Context, cfg config.Config) (*pgxpool.Pool, error) 
 	}
 	return db, nil
 }
-

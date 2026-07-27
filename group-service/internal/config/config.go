@@ -10,8 +10,8 @@ import (
 )
 
 type Config struct {
-	Server ServerConfig
-	DB     DBConfig
+	Server   ServerConfig
+	DB       DBConfig
 	LogLevel slog.Level
 }
 
@@ -25,9 +25,9 @@ func (s ServerConfig) Address() string {
 }
 
 type DBConfig struct {
-	URL            string
-	MaxConns       int32
-	MinConns       int32
+	URL             string
+	MaxConns        int32
+	MinConns        int32
 	MaxConnLifetime time.Duration
 }
 
@@ -70,9 +70,9 @@ func Load() (Config, error) {
 			Port: port,
 		},
 		DB: DBConfig{
-			URL: dbURL,
-			MaxConns: int32(maxConns),
-			MinConns: int32(minConns),
+			URL:             dbURL,
+			MaxConns:        int32(maxConns),
+			MinConns:        int32(minConns),
 			MaxConnLifetime: maxLifetime,
 		},
 		LogLevel: level,
@@ -97,4 +97,3 @@ func readInt(key string, fallback int) (int, error) {
 	}
 	return value, nil
 }
-

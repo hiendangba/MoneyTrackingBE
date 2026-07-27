@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"time"
 
-	transactionv1 "transaction-service/gen/transaction/v1"
-	"transaction-service/internal/domain"
-	apperrors "transaction-service/internal/errors"
-	"transaction-service/internal/service"
+	transactionv1 "github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/gen/transaction/v1"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/domain"
+	apperrors "github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/errors"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/service"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

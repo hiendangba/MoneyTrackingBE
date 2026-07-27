@@ -1,13 +1,13 @@
-module api-gateway
+module github.com/hiendangba/MoneyTrackingBE/Backend/api-gateway
 
 go 1.26.5
 
 require (
-	auth-service v0.0.0
+	github.com/hiendangba/MoneyTrackingBE/Backend/auth-service v0.0.0
+	github.com/hiendangba/MoneyTrackingBE/Backend/group-service v0.0.0
+	github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service v0.0.0
 	google.golang.org/grpc v1.82.1
 	google.golang.org/protobuf v1.36.11
-	group-service v0.0.0
-	transaction-service v0.0.0
 )
 
 require (
@@ -17,8 +17,8 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 // indirect
 )
 
-replace auth-service => ../auth-service
+replace github.com/hiendangba/MoneyTrackingBE/Backend/auth-service => ../auth-service
 
-replace group-service => ../group-service
+replace github.com/hiendangba/MoneyTrackingBE/Backend/group-service => ../group-service
 
-replace transaction-service => ../transaction-service
+replace github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service => ../transaction-service

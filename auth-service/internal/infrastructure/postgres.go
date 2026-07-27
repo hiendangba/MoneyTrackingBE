@@ -1,9 +1,9 @@
 package infrastructure
 
 import (
-	"auth-service/internal/config"
 	"context"
 	"fmt"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/config"
 	"net/url"
 
 	"github.com/jackc/pgx/v5/pgxpool"

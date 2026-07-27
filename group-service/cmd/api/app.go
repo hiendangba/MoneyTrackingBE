@@ -6,15 +6,15 @@ import (
 	"net"
 	"time"
 
-	groupv1 "group-service/gen/group/v1"
-	"group-service/internal/infrastructure"
-	"group-service/internal/repository"
-	"group-service/internal/service"
-	grpctransport "group-service/internal/transport/grpc"
+	groupv1 "github.com/hiendangba/MoneyTrackingBE/Backend/group-service/gen/group/v1"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/group-service/internal/infrastructure"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/group-service/internal/repository"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/group-service/internal/service"
+	grpctransport "github.com/hiendangba/MoneyTrackingBE/Backend/group-service/internal/transport/grpc"
 
+	"google.golang.org/grpc"
 	grpchealth "google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc"
 )
 
 func run() error {

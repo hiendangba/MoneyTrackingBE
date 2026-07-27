@@ -15,10 +15,10 @@ import (
 	"strings"
 	"time"
 
-	"auth-service/internal/config"
-	"auth-service/internal/dto"
-	apperrors "auth-service/internal/errors"
-	"auth-service/internal/utils"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/config"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/dto"
+	apperrors "github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/errors"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/utils"
 
 	"github.com/redis/go-redis/v9"
 )

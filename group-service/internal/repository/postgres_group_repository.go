@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"group-service/internal/domain"
-	apperrors "group-service/internal/errors"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/group-service/internal/domain"
+	apperrors "github.com/hiendangba/MoneyTrackingBE/Backend/group-service/internal/errors"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"

@@ -38,4 +38,3 @@ func RecoveryUnaryInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {
 		return handler(ctx, req)
 	}
 }
-

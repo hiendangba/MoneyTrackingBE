@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"auth-service/internal/config"
-	"auth-service/internal/domain"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/config"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/domain"
 
 	"github.com/golang-jwt/jwt/v5"
 )

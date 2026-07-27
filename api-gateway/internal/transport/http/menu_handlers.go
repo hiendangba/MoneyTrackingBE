@@ -3,7 +3,7 @@ package httptransport
 import (
 	"net/http"
 
-	authv1 "auth-service/gen/auth/v1"
+	authv1 "github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/gen/auth/v1"
 )
 
 func (g *Gateway) ListMenus(w http.ResponseWriter, r *http.Request, claims AuthClaims) {

@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"os"
 
-	"group-service/internal/config"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/group-service/internal/config"
 
 	"github.com/joho/godotenv"
 )
@@ -24,4 +24,3 @@ func bootstrap() (config.Config, *slog.Logger, error) {
 	slog.SetDefault(logger)
 	return cfg, logger, nil
 }
-

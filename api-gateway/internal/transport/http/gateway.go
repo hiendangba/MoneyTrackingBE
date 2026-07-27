@@ -13,14 +13,14 @@ import (
 	"strings"
 	"time"
 
-	"api-gateway/internal/clients"
-	"api-gateway/internal/config"
-	authv1 "auth-service/gen/auth/v1"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/api-gateway/internal/clients"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/api-gateway/internal/config"
+	authv1 "github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/gen/auth/v1"
+	groupv1 "github.com/hiendangba/MoneyTrackingBE/Backend/group-service/gen/group/v1"
+	transactionv1 "github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/gen/transaction/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	groupv1 "group-service/gen/group/v1"
-	transactionv1 "transaction-service/gen/transaction/v1"
 )
 
 type Gateway struct {

@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"group-service/internal/domain"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/group-service/internal/domain"
 )
 
 type GroupRepository interface {
@@ -23,4 +23,3 @@ type GroupRepository interface {
 	ListInvitations(ctx context.Context, groupID string) ([]domain.GroupInvitation, error)
 	UpdateInvitation(ctx context.Context, invitation domain.GroupInvitation) (*domain.GroupInvitation, error)
 }
-

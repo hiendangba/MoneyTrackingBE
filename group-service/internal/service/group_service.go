@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"group-service/internal/domain"
-	dto "group-service/internal/dto"
-	apperrors "group-service/internal/errors"
-	"group-service/internal/repository"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/group-service/internal/domain"
+	dto "github.com/hiendangba/MoneyTrackingBE/Backend/group-service/internal/dto"
+	apperrors "github.com/hiendangba/MoneyTrackingBE/Backend/group-service/internal/errors"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/group-service/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"

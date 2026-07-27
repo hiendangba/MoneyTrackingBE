@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package transaction.v1;
 
-option go_package = "transaction-service/gen/transaction/v1;transactionv1";
+option go_package = "github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/gen/transaction/v1;transactionv1";
 
 import "google/protobuf/timestamp.proto";
 

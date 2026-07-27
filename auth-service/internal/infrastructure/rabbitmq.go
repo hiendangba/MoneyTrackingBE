@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"auth-service/internal/config"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/config"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )

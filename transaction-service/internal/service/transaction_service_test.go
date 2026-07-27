@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"transaction-service/internal/clients"
-	"transaction-service/internal/domain"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/clients"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/domain"
 )
 
 func TestTransactionService_CreateGroupTransaction(t *testing.T) {

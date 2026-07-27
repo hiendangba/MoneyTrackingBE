@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"transaction-service/internal/config"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/config"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

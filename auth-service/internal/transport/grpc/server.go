@@ -7,10 +7,10 @@ import (
 	"net/http/httptest"
 	"time"
 
-	authv1 "auth-service/gen/auth/v1"
-	"auth-service/internal/dto"
-	apperrors "auth-service/internal/errors"
-	"auth-service/internal/service"
+	authv1 "github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/gen/auth/v1"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/dto"
+	apperrors "github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/errors"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/service"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
