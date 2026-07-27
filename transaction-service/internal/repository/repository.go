@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"transaction-service/internal/domain"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/domain"
 )
 
 type Repository interface {

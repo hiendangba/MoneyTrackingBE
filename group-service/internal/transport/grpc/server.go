@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	groupv1 "group-service/gen/group/v1"
-	"group-service/internal/domain"
-	dto "group-service/internal/dto"
-	apperrors "group-service/internal/errors"
-	"group-service/internal/service"
+	groupv1 "github.com/hiendangba/MoneyTrackingBE/Backend/group-service/gen/group/v1"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/group-service/internal/domain"
+	dto "github.com/hiendangba/MoneyTrackingBE/Backend/group-service/internal/dto"
+	apperrors "github.com/hiendangba/MoneyTrackingBE/Backend/group-service/internal/errors"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/group-service/internal/service"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

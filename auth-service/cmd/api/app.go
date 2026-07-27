@@ -1,18 +1,18 @@
 package main
 
 import (
-	"auth-service/internal/infrastructure"
-	"auth-service/internal/repository"
-	"auth-service/internal/service"
-	grpctransport "auth-service/internal/transport/grpc"
-	httptransport "auth-service/internal/transport/http"
 	"context"
 	"fmt"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/infrastructure"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/repository"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/service"
+	grpctransport "github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/transport/grpc"
+	httptransport "github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/transport/http"
 	"net"
 	"net/http"
 	"time"
 
-	authv1 "auth-service/gen/auth/v1"
+	authv1 "github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/gen/auth/v1"
 	"google.golang.org/grpc"
 	grpchealth "google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"

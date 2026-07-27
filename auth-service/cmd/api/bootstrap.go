@@ -1,8 +1,8 @@
 package main
 
 import (
-	"auth-service/internal/config"
 	"fmt"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/config"
 	"log/slog"
 	"os"
 

@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"strings"
 
-	"auth-service/internal/dto"
-	apperrors "auth-service/internal/errors"
-	"auth-service/internal/service"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/dto"
+	apperrors "github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/errors"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/service"
 )
 
 type AuthHandler struct {

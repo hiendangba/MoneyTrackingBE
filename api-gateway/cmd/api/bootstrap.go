@@ -1,7 +1,7 @@
 package main
 
 import (
-	"api-gateway/internal/config"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/api-gateway/internal/config"
 	"log/slog"
 	"os"
 )

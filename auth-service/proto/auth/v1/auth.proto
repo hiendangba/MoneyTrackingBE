@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package auth.v1;
 
-option go_package = "auth-service/gen/auth/v1;authv1";
+option go_package = "github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/gen/auth/v1;authv1";
 
 message MessageResponse {
   string message = 1;

@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"auth-service/internal/domain"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/domain"
 )
 
 type UserRepository interface {

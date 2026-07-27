@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"transaction-service/internal/clients"
-	"transaction-service/internal/domain"
-	apperrors "transaction-service/internal/errors"
-	"transaction-service/internal/repository"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/clients"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/domain"
+	apperrors "github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/errors"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/repository"
 
 	"github.com/google/uuid"
 )

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package group.v1;
 
-option go_package = "group-service/gen/group/v1;groupv1";
+option go_package = "github.com/hiendangba/MoneyTrackingBE/Backend/group-service/gen/group/v1;groupv1";
 
 import "google/protobuf/timestamp.proto";
 
@@ -151,4 +151,3 @@ service GroupService {
   rpc ListInvitations(ListInvitationsRequest) returns (ListInvitationsResponse);
   rpc RespondInvitation(RespondInvitationRequest) returns (GroupInvitation);
 }
-

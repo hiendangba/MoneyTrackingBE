@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	authv1 "auth-service/gen/auth/v1"
-	groupv1 "group-service/gen/group/v1"
-	"transaction-service/internal/domain"
-	apperrors "transaction-service/internal/errors"
+	authv1 "github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/gen/auth/v1"
+	groupv1 "github.com/hiendangba/MoneyTrackingBE/Backend/group-service/gen/group/v1"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/domain"
+	apperrors "github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/errors"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

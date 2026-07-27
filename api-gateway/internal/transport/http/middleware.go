@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	authv1 "auth-service/gen/auth/v1"
+	authv1 "github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/gen/auth/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

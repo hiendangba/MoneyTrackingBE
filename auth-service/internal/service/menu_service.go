@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"auth-service/internal/domain"
-	"auth-service/internal/dto"
-	apperrors "auth-service/internal/errors"
-	"auth-service/internal/repository"
-	"auth-service/internal/utils"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/domain"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/dto"
+	apperrors "github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/errors"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/repository"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/internal/utils"
 
 	"github.com/google/uuid"
 )

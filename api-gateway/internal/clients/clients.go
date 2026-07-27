@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	authv1 "auth-service/gen/auth/v1"
+	authv1 "github.com/hiendangba/MoneyTrackingBE/Backend/auth-service/gen/auth/v1"
+	groupv1 "github.com/hiendangba/MoneyTrackingBE/Backend/group-service/gen/group/v1"
+	transactionv1 "github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/gen/transaction/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	groupv1 "group-service/gen/group/v1"
-	transactionv1 "transaction-service/gen/transaction/v1"
 )
 
 type Clients struct {

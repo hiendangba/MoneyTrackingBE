@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
+	groupv1 "github.com/hiendangba/MoneyTrackingBE/Backend/group-service/gen/group/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	groupv1 "group-service/gen/group/v1"
 )
 
 func (g *Gateway) ListGroups(w http.ResponseWriter, r *http.Request, claims AuthClaims) {

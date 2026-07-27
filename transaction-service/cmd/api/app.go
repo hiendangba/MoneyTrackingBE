@@ -6,12 +6,12 @@ import (
 	"net"
 	"time"
 
-	transactionv1 "transaction-service/gen/transaction/v1"
-	"transaction-service/internal/clients"
-	"transaction-service/internal/infrastructure"
-	"transaction-service/internal/repository"
-	"transaction-service/internal/service"
-	grpctransport "transaction-service/internal/transport/grpc"
+	transactionv1 "github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/gen/transaction/v1"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/clients"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/infrastructure"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/repository"
+	"github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/service"
+	grpctransport "github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service/internal/transport/grpc"
 
 	"google.golang.org/grpc"
 	grpchealth "google.golang.org/grpc/health"
