@@ -3,8 +3,8 @@ module github.com/hiendangba/MoneyTrackingBE/Backend/transaction-service
 go 1.26.5
 
 require (
-	github.com/hiendangba/MoneyTrackingBE/Backend/auth-service v0.0.0
 	github.com/google/uuid v1.6.0
+	github.com/hiendangba/MoneyTrackingBE/Backend/auth-service v0.0.0
 	github.com/hiendangba/MoneyTrackingBE/Backend/group-service v0.0.0
 	github.com/jackc/pgx/v5 v5.9.2
 	google.golang.org/grpc v1.82.1
